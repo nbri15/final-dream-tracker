@@ -971,6 +971,38 @@ def create_app():
         except (TypeError, ValueError):
             return "score-na"
 
+    def normalize_sats_score(value):
+        if value is None:
+            return None
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            return None
+        if value.is_integer():
+            return int(value)
+        return round(value, 1)
+
+    def latest_sats_scaled_by_pupil(pupil_ids, academic_year_id, subject):
+        if not pupil_ids or not academic_year_id or subject not in {"maths", "reading", "spag"}:
+            return {}
+
+        base = "M" if subject == "maths" else ("R" if subject == "reading" else "S")
+        scaled_keys = [f"{base}{i}" for i in range(5, 9)]
+        score_rows = (SatsScore.query
+                      .filter(
+                          SatsScore.pupil_id.in_(pupil_ids),
+                          SatsScore.academic_year_id == academic_year_id,
+                          SatsScore.key.in_(scaled_keys),
+                      )
+                      .all())
+        score_map = {(row.pupil_id, row.key): row.value for row in score_rows}
+
+        latest = {}
+        for pupil_id in pupil_ids:
+            values = [normalize_sats_score(score_map.get((pupil_id, key))) for key in scaled_keys]
+            latest[pupil_id] = next((score for score in reversed(values) if score is not None), None)
+        return latest
+
     def build_year6_home_rows(class_id, academic_year_id, filter_params):
         if not class_id or not academic_year_id:
             return []
@@ -1025,17 +1057,14 @@ def create_app():
                       .all())
         score_map = {(row.pupil_id, row.key): row.value for row in score_rows}
 
+        latest_scaled_by_subject = {
+            subject_name: latest_sats_scaled_by_pupil(pupil_ids, academic_year_id, subject_name)
+            for subject_name in ("maths", "reading", "spag")
+        }
+
         def pick_scores(pupil_id, keys):
             values = [score_map.get((pupil_id, key)) for key in keys]
-            pretty = []
-            for value in values:
-                if value is None:
-                    pretty.append(None)
-                elif float(value).is_integer():
-                    pretty.append(int(value))
-                else:
-                    pretty.append(round(float(value), 1))
-            return pretty
+            return [normalize_sats_score(value) for value in values]
 
         rows = []
         for pupil in pupils:
@@ -1052,7 +1081,7 @@ def create_app():
             for subject_name, keys in subject_keys.items():
                 raw_scores = pick_scores(pupil.id, keys["raw"])
                 scaled_scores = pick_scores(pupil.id, keys["scaled"])
-                latest_scaled = next((score for score in reversed(scaled_scores) if score is not None), None)
+                latest_scaled = latest_scaled_by_subject[subject_name].get(pupil.id)
                 row[subject_name] = {
                     "raw": raw_scores,
                     "scaled": scaled_scores,
@@ -1123,10 +1152,45 @@ def create_app():
     def subject_distribution_for_pupil_ids(pupil_ids, year_id, term, subject):
         out = {"wts_count": 0, "ot_count": 0, "gds_count": 0, "total_count": 0, "on_track_count": 0,
                "wts": 0.0, "ot": 0.0, "gds": 0.0, "on_track": 0.0}
-        if not pupil_ids or term not in TERMS:
+        if not pupil_ids:
             return out
 
-        if subject == "writing":
+        values = []
+        if subject in {"maths", "reading", "spag"}:
+            year6_ids = [pid for (pid,) in (Pupil.query
+                                            .join(SchoolClass, SchoolClass.id == Pupil.class_id)
+                                            .filter(Pupil.id.in_(pupil_ids), SchoolClass.year_group == 6)
+                                            .with_entities(Pupil.id)
+                                            .all())]
+            year6_id_set = set(year6_ids)
+            non_year6_ids = [pid for pid in pupil_ids if pid not in year6_id_set]
+
+            if year6_ids:
+                latest_scaled = latest_sats_scaled_by_pupil(year6_ids, year_id, subject)
+                for score in latest_scaled.values():
+                    if score is None:
+                        continue
+                    if score < 100:
+                        values.append("wts")
+                    elif score <= 110:
+                        values.append("ot")
+                    else:
+                        values.append("gds")
+
+            if non_year6_ids and term in TERMS:
+                rows = (Result.query
+                        .filter(Result.pupil_id.in_(non_year6_ids), Result.academic_year_id == year_id, Result.term == term, Result.subject == subject)
+                        .order_by(Result.created_at.desc())
+                        .all())
+                latest = {}
+                for row in rows:
+                    if row.pupil_id not in latest:
+                        latest[row.pupil_id] = row
+                values.extend([summarize_band(row.summary, subject) for row in latest.values()])
+
+        elif subject == "writing":
+            if term not in TERMS:
+                return out
             rows = (WritingResult.query
                     .filter(WritingResult.pupil_id.in_(pupil_ids), WritingResult.academic_year_id == year_id, WritingResult.term == term)
                     .order_by(WritingResult.created_at.desc())
@@ -1137,15 +1201,7 @@ def create_app():
                     latest[row.pupil_id] = row
             values = [summarize_band(row.band, "writing") for row in latest.values()]
         else:
-            rows = (Result.query
-                    .filter(Result.pupil_id.in_(pupil_ids), Result.academic_year_id == year_id, Result.term == term, Result.subject == subject)
-                    .order_by(Result.created_at.desc())
-                    .all())
-            latest = {}
-            for row in rows:
-                if row.pupil_id not in latest:
-                    latest[row.pupil_id] = row
-            values = [summarize_band(row.summary, subject) for row in latest.values()]
+            return out
 
         for value in values:
             if value == "wts":

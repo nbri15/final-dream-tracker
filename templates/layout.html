@@ -332,6 +332,9 @@
           <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'table' and sidebar_subject == 'reading' else '' }}" href="{{ url_for('dashboard', subject='reading', mode='table', **sidebar_params.values) }}">Reading</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'table' and sidebar_subject == 'spag' else '' }}" href="{{ url_for('dashboard', subject='spag', mode='table', **sidebar_params.values) }}">SPaG</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'table' and sidebar_subject == 'writing' else '' }}" href="{{ url_for('dashboard', subject='writing', mode='table', **sidebar_params.values) }}">Writing</a>
+          {% if current_user.is_admin %}
+            <a class="sidebar-link {{ 'active' if request.endpoint in ['sats_page','y6_sats_tracker'] else '' }}" href="{{ url_for('y6_sats_tracker', year=sats_nav.year_id, **{'class': sats_nav.class_id}) if sats_nav else url_for('y6_sats_tracker') }}">SATs (Year 6)</a>
+          {% endif %}
           <a class="sidebar-link {{ 'active' if request.endpoint == 'assessments' else '' }}" href="{{ url_for('assessments') }}">GAP</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'interventions' else '' }}" href="{{ url_for('interventions') }}">Interventions</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ reports_href }}">Reports</a>
@@ -348,9 +351,6 @@
           <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_archive' else '' }}" href="{{ url_for('admin_archive') }}">Archive</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'import_results' else '' }}" href="{{ url_for('import_results') }}">Import data</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'assessments' else '' }}" href="{{ url_for('assessments') }}">GAP</a>
-
-          <div class="section-title">Teacher</div>
-          <a class="sidebar-link {{ 'active' if request.endpoint in ['sats_page','y6_sats_tracker'] else '' }}" href="{{ url_for('y6_home', year=sats_nav.year_id, **{'class': sats_nav.class_id}) if sats_nav else url_for('y6_home') }}">📊 SATs (Year 6)</a>
         {% endif %}
       </nav>
     </aside>
