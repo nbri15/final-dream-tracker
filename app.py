@@ -1085,6 +1085,22 @@ def create_app():
 
         return overview
 
+    YEAR6_SUBJECT_KEY_MAP = {
+        "maths": [f"M{i}" for i in range(1, 9)],
+        "reading": [f"R{i}" for i in range(1, 9)],
+        "spag": [f"S{i}" for i in range(1, 9)],
+    }
+
+    def parse_year6_cell_key(cell_key: str):
+        match = re.fullmatch(r"(maths|reading|spag)_(\d)", (cell_key or "").strip().lower())
+        if not match:
+            return None
+        subject = match.group(1)
+        slot = int(match.group(2))
+        if slot < 1 or slot > 8:
+            return None
+        return YEAR6_SUBJECT_KEY_MAP[subject][slot - 1]
+
     def summarize_band(value: str, subject: str):
         val = (value or "").strip().lower()
         if subject == "writing":
@@ -2150,7 +2166,92 @@ def create_app():
             rows=rows,
             overview=overview,
             score_class=sats_score_class,
+            is_editable=(not is_admin and user_has_class_access(current_user, klass.id)),
         )
+
+    @app.route("/year6/sats/update", methods=["POST"])
+    @login_required
+    def year6_sats_update():
+        try:
+            class_id = int(request.form.get("class_id", "0"))
+            year_id = int(request.form.get("year_id", "0"))
+        except (TypeError, ValueError):
+            abort(400)
+
+        klass = SchoolClass.query.get_or_404(class_id)
+        if klass.year_group != 6:
+            abort(400)
+
+        can_edit = bool(getattr(current_user, "is_admin", False)) or user_has_class_access(current_user, class_id)
+        if not can_edit:
+            abort(403)
+
+        ensure_sats_headers(class_id, year_id)
+
+        for form_key, raw_value in request.form.items():
+            if not form_key.startswith("score__"):
+                continue
+
+            parts = form_key.split("__", 2)
+            if len(parts) != 3:
+                continue
+
+            try:
+                pupil_id = int(parts[1])
+            except (TypeError, ValueError):
+                continue
+
+            db_key = parse_year6_cell_key(parts[2])
+            if not db_key:
+                continue
+
+            pupil = Pupil.query.get(pupil_id)
+            if not pupil or pupil.class_id != class_id:
+                continue
+
+            value_text = (raw_value or "").strip()
+            if value_text == "":
+                parsed = None
+            else:
+                try:
+                    parsed = float(value_text)
+                except ValueError:
+                    continue
+
+            existing = SatsScore.query.filter_by(
+                pupil_id=pupil_id,
+                academic_year_id=year_id,
+                key=db_key,
+            ).first()
+            if not existing:
+                existing = SatsScore(
+                    pupil_id=pupil_id,
+                    academic_year_id=year_id,
+                    key=db_key,
+                )
+                db.session.add(existing)
+
+            existing.value = parsed
+            existing.updated_at = datetime.utcnow()
+
+        db.session.commit()
+
+        return_endpoint = (request.form.get("return_endpoint") or "y6_home").strip()
+        if return_endpoint not in {"y6_home", "sats_page"}:
+            return_endpoint = "y6_home"
+
+        redirect_params = {
+            key.replace("return__", "", 1): value
+            for key, value in request.form.items()
+            if key.startswith("return__")
+        }
+
+        if "class" not in redirect_params:
+            redirect_params["class"] = str(class_id)
+        if "year" not in redirect_params:
+            redirect_params["year"] = str(year_id)
+
+        return redirect(url_for(return_endpoint, **redirect_params))
 
     @app.route("/year6/sats-tracker")
     @login_required
@@ -2721,43 +2822,24 @@ def create_app():
 
         ensure_sats_headers(klass.id, year.id)
 
-        pupils = (Pupil.query
-                  .filter_by(class_id=klass.id)
-                  .order_by(Pupil.number.is_(None), Pupil.number, Pupil.name)
-                  .all())
-
-        headers = (SatsHeader.query
-                   .filter_by(class_id=klass.id, academic_year_id=year.id)
-                   .filter(SatsHeader.group.in_(["Maths", "Reading", "SPaG"]))
-                   .order_by(SatsHeader.order.asc(), SatsHeader.id.asc())
-                   .all())
-
-        headers_by_group = {"Maths": [], "Reading": [], "SPaG": []}
-        for h in headers:
-            headers_by_group[h.group].append(h)
-
-        pupil_ids = [p.id for p in pupils]
-        score_map = {}
-        if pupil_ids:
-            scores = (SatsScore.query
-                      .filter(SatsScore.pupil_id.in_(pupil_ids),
-                              SatsScore.academic_year_id == year.id)
-                      .all())
-            score_map = {(s.pupil_id, s.key): s.value for s in scores}
+        rows = build_year6_home_rows(
+            klass.id,
+            year.id,
+            {"gender": "all", "pp": "all", "laps": "all", "service": "all"},
+        )
 
         return render_template(
             "index_y6_sats.html",
             klass=klass,
-            pupils=pupils,
-            headers_by_group=headers_by_group,
-            scores=score_map,
+            rows=rows,
             years=AcademicYear.query.order_by(AcademicYear.label.asc()).all(),
             selected_year_id=year.id,
             selected_class_id=str(klass.id),
             is_admin=bool(getattr(current_user, "is_admin", False)),
             classes=active_classes_query().order_by(SchoolClass.name).all(),
-            kpi=None,
-            filters={"gender": "", "pp": "", "laps": "", "svc": ""},
+            filters={"subject": "all"},
+            score_class=sats_score_class,
+            is_editable=(not bool(getattr(current_user, "is_admin", False))),
         )
 
     @app.route("/api/sats/rename_header", methods=["POST"])

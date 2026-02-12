@@ -100,64 +100,6 @@
 </section>
 
 <section class="card">
-  <div class="table-scroll">
-    <table class="y6-home-table table-sticky">
-      <thead>
-        <tr>
-          <th rowspan="2">Name</th>
-          {% if filters.subject in ['all', 'maths'] %}<th colspan="9">Maths</th>{% endif %}
-          {% if filters.subject in ['all', 'reading'] %}<th colspan="9">Reading</th>{% endif %}
-          {% if filters.subject in ['all', 'spag'] %}<th colspan="9">SPaG</th>{% endif %}
-        </tr>
-        <tr>
-          {% macro subhead() -%}
-            <th class="th-rotate"><div><span>Raw 1</span></div></th>
-            <th class="th-rotate"><div><span>Raw 2</span></div></th>
-            <th class="th-rotate"><div><span>Raw 3</span></div></th>
-            <th class="th-rotate"><div><span>Raw 4</span></div></th>
-            <th class="th-rotate"><div><span>Scaled 1</span></div></th>
-            <th class="th-rotate"><div><span>Scaled 2</span></div></th>
-            <th class="th-rotate"><div><span>Scaled 3</span></div></th>
-            <th class="th-rotate"><div><span>Scaled 4</span></div></th>
-            <th class="th-rotate"><div><span>Latest Scaled</span></div></th>
-          {%- endmacro %}
-          {% if filters.subject in ['all', 'maths'] %}{{ subhead() }}{% endif %}
-          {% if filters.subject in ['all', 'reading'] %}{{ subhead() }}{% endif %}
-          {% if filters.subject in ['all', 'spag'] %}{{ subhead() }}{% endif %}
-        </tr>
-      </thead>
-      <tbody>
-        {% if rows %}
-          {% for row in rows %}
-            <tr>
-              <td>
-                <div class="y6-name">{{ row.name }}</div>
-                <div class="y6-badges">
-                  {% if row.badges.PP %}<span class="tiny-badge">PP</span>{% endif %}
-                  {% if row.badges.LAP %}<span class="tiny-badge">LAP</span>{% endif %}
-                  {% if row.badges.SC %}<span class="tiny-badge">SC</span>{% endif %}
-                  {% if row.badges.gender %}<span class="tiny-badge">{{ row.badges.gender }}</span>{% endif %}
-                </div>
-              </td>
-
-              {% macro subject_cells(data) -%}
-                {% for score in data.raw %}<td>{{ score if score is not none else '—' }}</td>{% endfor %}
-                {% for score in data.scaled %}<td>{{ score if score is not none else '—' }}</td>{% endfor %}
-                <td><span class="score-chip {{ score_class(data.latest_scaled) }}">{{ data.latest_scaled if data.latest_scaled is not none else '—' }}</span></td>
-              {%- endmacro %}
-
-              {% if filters.subject in ['all', 'maths'] %}{{ subject_cells(row.maths) }}{% endif %}
-              {% if filters.subject in ['all', 'reading'] %}{{ subject_cells(row.reading) }}{% endif %}
-              {% if filters.subject in ['all', 'spag'] %}{{ subject_cells(row.spag) }}{% endif %}
-            </tr>
-          {% endfor %}
-        {% else %}
-          <tr>
-            <td colspan="40" class="center muted">No pupils match the selected filters.</td>
-          </tr>
-        {% endif %}
-      </tbody>
-    </table>
-  </div>
+  {% include "partials/_y6_sats_table.html" %}
 </section>
 {% endblock %}
