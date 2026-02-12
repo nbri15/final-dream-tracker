@@ -1,0 +1,99 @@
+{% macro subhead() -%}
+  <th class="th-rotate"><div><span>Raw 1</span></div></th>
+  <th class="th-rotate"><div><span>Raw 2</span></div></th>
+  <th class="th-rotate"><div><span>Raw 3</span></div></th>
+  <th class="th-rotate"><div><span>Raw 4</span></div></th>
+  <th class="th-rotate"><div><span>Scaled 1</span></div></th>
+  <th class="th-rotate"><div><span>Scaled 2</span></div></th>
+  <th class="th-rotate"><div><span>Scaled 3</span></div></th>
+  <th class="th-rotate"><div><span>Scaled 4</span></div></th>
+  <th class="th-rotate"><div><span>Latest Scaled</span></div></th>
+{%- endmacro %}
+
+{% macro subject_cells(data, pupil_id, subject_key, is_editable) -%}
+  {% for score in data.raw %}
+    {% set slot = loop.index %}
+    {% if is_editable %}
+      {% set cell_key = subject_key ~ '_' ~ slot %}
+      <td>
+        <input type="hidden" name="cell_id" value="{{ pupil_id }}:{{ cell_key }}">
+        <input type="number" name="score__{{ pupil_id }}__{{ cell_key }}" value="{{ '' if score is none else score }}" step="0.1" style="width:72px;">
+      </td>
+    {% else %}
+      <td>{{ score if score is not none else '—' }}</td>
+    {% endif %}
+  {% endfor %}
+  {% for score in data.scaled %}
+    {% set slot = loop.index + 4 %}
+    {% if is_editable %}
+      {% set cell_key = subject_key ~ '_' ~ slot %}
+      <td>
+        <input type="hidden" name="cell_id" value="{{ pupil_id }}:{{ cell_key }}">
+        <input type="number" name="score__{{ pupil_id }}__{{ cell_key }}" value="{{ '' if score is none else score }}" step="0.1" style="width:72px;">
+      </td>
+    {% else %}
+      <td>{{ score if score is not none else '—' }}</td>
+    {% endif %}
+  {% endfor %}
+  <td><span class="score-chip {{ score_class(data.latest_scaled) }}">{{ data.latest_scaled if data.latest_scaled is not none else '—' }}</span></td>
+{%- endmacro %}
+
+{% if is_editable %}
+<form method="post" action="{{ url_for('year6_sats_update') }}">
+  <input type="hidden" name="class_id" value="{{ selected_class_id }}">
+  <input type="hidden" name="year_id" value="{{ selected_year_id }}">
+  <input type="hidden" name="return_endpoint" value="{{ request.endpoint }}">
+  {% for key, value in request.args.items() %}
+    <input type="hidden" name="return__{{ key }}" value="{{ value }}">
+  {% endfor %}
+{% endif %}
+
+<div class="table-scroll">
+  <table class="y6-home-table table-sticky">
+    <thead>
+      <tr>
+        <th rowspan="2">Name</th>
+        {% if filters.subject in ['all', 'maths'] %}<th colspan="9">Maths</th>{% endif %}
+        {% if filters.subject in ['all', 'reading'] %}<th colspan="9">Reading</th>{% endif %}
+        {% if filters.subject in ['all', 'spag'] %}<th colspan="9">SPaG</th>{% endif %}
+      </tr>
+      <tr>
+        {% if filters.subject in ['all', 'maths'] %}{{ subhead() }}{% endif %}
+        {% if filters.subject in ['all', 'reading'] %}{{ subhead() }}{% endif %}
+        {% if filters.subject in ['all', 'spag'] %}{{ subhead() }}{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% if rows %}
+        {% for row in rows %}
+          <tr>
+            <td>
+              <div class="y6-name">{{ row.name }}</div>
+              <div class="y6-badges">
+                {% if row.badges.PP %}<span class="tiny-badge">PP</span>{% endif %}
+                {% if row.badges.LAP %}<span class="tiny-badge">LAP</span>{% endif %}
+                {% if row.badges.SC %}<span class="tiny-badge">SC</span>{% endif %}
+                {% if row.badges.gender %}<span class="tiny-badge">{{ row.badges.gender }}</span>{% endif %}
+              </div>
+            </td>
+
+            {% if filters.subject in ['all', 'maths'] %}{{ subject_cells(row.maths, row.pupil_id, 'maths', is_editable) }}{% endif %}
+            {% if filters.subject in ['all', 'reading'] %}{{ subject_cells(row.reading, row.pupil_id, 'reading', is_editable) }}{% endif %}
+            {% if filters.subject in ['all', 'spag'] %}{{ subject_cells(row.spag, row.pupil_id, 'spag', is_editable) }}{% endif %}
+          </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="40" class="center muted">No pupils match the selected filters.</td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+{% if is_editable %}
+  <div style="margin-top: 0.75rem;">
+    <button class="button" type="submit">Save</button>
+  </div>
+</form>
+{% endif %}
