@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+{% block title %}Analysis — {{ assessment.title }}{% endblock %}
+{% block content %}
+<h1>Analysis — {{ assessment.title }}</h1>
+<p>Class: {{ assessment.klass.name }} | Year: {{ assessment.academic_year.label }} | Term: {{ assessment.term }} | Subject: {{ assessment.subject|upper }} | Paper: {{ assessment.paper }}</p>
+
+<canvas id="qbar" height="120"></canvas>
+
+<script>
+  const data = {{ data|tojson }};
+  const labels = data.map(d => `Q${d.number}${d.strand ? ' ('+d.strand+')' : ''}`);
+  const values = data.map(d => d.avg_pct);
+
+  new Chart(document.getElementById('qbar'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Average % by question',
+        data: values,
+        backgroundColor: '#60a5fa'
+      }]
+    },
+    options: {
+      scales: { y: { beginAtZero: true, max: 100 } }
+    }
+  });
+</script>
+
+<hr>
+<h2>Pupils flagged for intervention</h2>
+{% if flagged %}
+  <table>
+    <thead><tr><th>Pupil</th><th>Overall %</th><th>Reasons</th></tr></thead>
+    <tbody>
+      {% for row in flagged %}
+        <tr>
+          <td><a class="flag" href="{{ url_for('pupil_page', pupil_id=row.pupil.id, year=assessment.academic_year_id, subject=assessment.subject) }}">🚩 {{ row.pupil.name }}</a></td>
+          <td>{{ row.overall_pct }}%</td>
+          <td>{{ '; '.join(row.reasons) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>No pupils flagged by the current thresholds.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+{% block title %}{{ pupil.name }} — Dream Tracker{% endblock %}
+{% block content %}
+
+<p><a href="{{ url_for('dashboard', subject=subject, year=selected_year_id, **{'class': pupil.class_id}) }}">← Back to class</a></p>
+<h1>{{ pupil.name }} — {{ subject_label }}</h1>
+
+<div style="margin: 0.5rem 0;">
+  <nav class="subject-tabs" aria-label="Subject tabs">
+    {% for s in subjects %}
+      <a class="subject-tab {{ 'active' if s == subject else '' }}" href="{{ url_for('pupil_page', pupil_id=pupil.id, year=selected_year_id, subject=s) }}">{{ 'Maths' if s=='maths' else ('Reading' if s=='reading' else 'SPaG') }}</a>
+    {% endfor %}
+    <a class="subject-tab {{ 'active' if subject == 'writing' else '' }}" href="{{ url_for('pupil_page', pupil_id=pupil.id, year=selected_year_id, subject='writing') }}">Writing</a>
+  </nav>
+  <a class="button" href="{{ url_for('report_pupil', pupil_id=pupil.id, year=selected_year_id, subject=subject) }}">Print report</a>
+  {% if is_year6 %}
+    <a class="button" href="{{ url_for('pupil_sats_page', pupil_id=pupil.id, year=selected_year_id) }}">SATs</a>
+  {% endif %}
+</div>
+
+<form class="inline" method="get" action="{{ url_for('pupil_page', pupil_id=pupil.id) }}">
+  <input type="hidden" name="subject" value="{{ subject }}">
+  <label>Academic year<br>
+    <select name="year">
+      {% for y in years %}
+        <option value="{{ y.id }}" {{ 'selected' if y.id == selected_year_id else '' }}>{{ y.label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button class="button" type="submit">Change</button>
+</form>
+
+<section>
+  <table>
+    <thead>
+      <tr>
+        <th>Term</th><th>{{ paper_labels[0] }}</th><th>{{ paper_labels[1] }}</th><th>Combined %</th><th>Band</th><th>Δ</th><th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in records %}
+      <tr>
+        <td>{{ r.term }}</td>
+        <td>{{ '' if r.arithmetic is none else r.arithmetic }}</td>
+        <td>{{ '' if r.reasoning is none else r.reasoning }}</td>
+        <td>{{ '' if r.combined_pct is none else r.combined_pct }}</td>
+        <td class="{{ band_css(r.summary) }}">{{ r.summary or '' }}</td>
+        <td>
+          {% if r.delta is none %}
+          {% elif r.delta > 0 %}⬆ {{ r.delta }}
+          {% elif r.delta < 0 %}⬇ {{ r.delta|abs }}
+          {% else %}→ 0.0{% endif %}
+        </td>
+        <td>{{ r.note }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

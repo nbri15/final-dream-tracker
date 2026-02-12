@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+{% block title %}Admin — Interventions{% endblock %}
+{% block content %}
+<h1>Admin — Interventions</h1>
+
+<section class="card">
+  <form method="get" class="inline" action="{{ url_for('admin_interventions') }}">
+    <label>Year<br>
+      <select name="year">
+        <option value="">All</option>
+        {% for y in years %}
+          <option value="{{ y.id }}" {{ 'selected' if sel_year == y.id else '' }}>{{ y.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Class<br>
+      <select name="class">
+        <option value="">All</option>
+        {% for c in classes %}
+          <option value="{{ c.id }}" {{ 'selected' if sel_class == c.id else '' }}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Term<br>
+      <select name="term">
+        <option value="">All</option>
+        <option {{ 'selected' if sel_term=='Autumn' else '' }}>Autumn</option>
+        <option {{ 'selected' if sel_term=='Spring' else '' }}>Spring</option>
+        <option {{ 'selected' if sel_term=='Summer' else '' }}>Summer</option>
+      </select>
+    </label>
+    <label>Paper<br>
+      <select name="paper">
+        <option value="">Both</option>
+        <option {{ 'selected' if sel_paper=='Arithmetic' else '' }}>Arithmetic</option>
+        <option {{ 'selected' if sel_paper=='Reasoning' else '' }}>Reasoning</option>
+      </select>
+    </label>
+    <label>Status<br>
+      <select name="status">
+        <option value="">Any</option>
+        <option {{ 'selected' if sel_status=='proposed' else '' }}>proposed</option>
+        <option {{ 'selected' if sel_status=='active' else '' }}>active</option>
+        <option {{ 'selected' if sel_status=='closed' else '' }}>closed</option>
+      </select>
+    </label>
+    <label>PP<br>
+      <select name="pp">
+        <option value="" {{ 'selected' if not sel_pp else '' }}>All</option>
+        <option value="1" {{ 'selected' if sel_pp=='1' else '' }}>Yes</option>
+        <option value="0" {{ 'selected' if sel_pp=='0' else '' }}>No</option>
+      </select>
+    </label>
+    <button class="button" type="submit">Filter</button>
+  </form>
+</section>
+
+<form method="post">
+  <table>
+    <thead>
+      <tr>
+        <th>When</th><th>Class</th><th>Pupil</th><th>Year</th><th>Term</th><th>Paper</th><th>%</th>
+        <th>Status</th><th>Focus</th><th>Teacher note</th><th>Support plan</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in items %}
+      <tr>
+        <td>{{ it.created_at.strftime('%Y-%m-%d') }}</td>
+        <td>{{ it.klass.name }}</td>
+        <td>{{ it.pupil.name }}</td>
+        <td>{{ it.year.label }}</td>
+        <td>{{ it.term }}</td>
+        <td>{{ it.paper }}</td>
+        <td>{{ it.pct if it.pct is not none else '' }}</td>
+        <td>
+          <select name="status_{{ it.id }}">
+            <option value="proposed" {{ 'selected' if it.status=='proposed' else '' }}>proposed</option>
+            <option value="active"   {{ 'selected' if it.status=='active'   else '' }}>active</option>
+            <option value="closed"   {{ 'selected' if it.status=='closed'   else '' }}>closed</option>
+          </select>
+        </td>
+        <td>{{ it.focus_areas or '' }}</td>
+        <td><textarea name="teacher_note_{{ it.id }}" rows="2" cols="30">{{ it.teacher_note or '' }}</textarea></td>
+        <td>
+          <textarea name="support_{{ it.id }}" rows="2" cols="35" placeholder="e.g., Times tables fluency, weekly small-group reasoning practice">{{ it.support_plan or '' }}</textarea>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p><button class="button" type="submit">Save all</button></p>
+</form>
+{% endblock %}

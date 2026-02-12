@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+{% block title %}Academic years — Dream Tracker{% endblock %}
+{% block content %}
+<h1>Academic years</h1>
+
+<section class="card">
+  <h2>Add year</h2>
+  <form method="post">
+    {{ form.csrf_token }}
+    <label>Label (e.g., 2025/26)<br>{{ form.label(size=12) }}</label>
+    <label>Start date (yyyy-mm-dd)<br>{{ form.start_date(size=12) }}</label>
+    <label>End date (yyyy-mm-dd)<br>{{ form.end_date(size=12) }}</label>
+    <label>{{ form.is_current() }} Set as current</label>
+    {{ form.submit(class_="button") }}
+  </form>
+</section>
+
+<section class="card">
+  <h2>Existing</h2>
+  <table>
+    <thead><tr><th>Label</th><th>Start</th><th>End</th><th>Current</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for y in years %}
+      <tr>
+        <td>{{ y.label }}</td>
+        <td>{{ y.start_date or '' }}</td>
+        <td>{{ y.end_date or '' }}</td>
+        <td>{{ 'Yes' if y.is_current else '' }}</td>
+        <td>
+          {% if not y.is_current %}
+          <form method="post" style="display:inline">
+            {{ set_form.csrf_token }}
+            <input type="hidden" name="year_id" value="{{ y.id }}">
+            {{ set_form.submit(class_="button") }}
+          </form>
+          {% else %}
+          —
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

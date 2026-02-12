@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+{% block title %}New assessment — Dream Tracker{% endblock %}
+{% block content %}
+<h1>New assessment</h1>
+<form method="post" class="inline">
+  <label>Academic year<br>
+    <select name="academic_year_id" required>
+      {% for y in years %}
+        <option value="{{ y.id }}">{{ y.label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Term<br>
+    <select name="term" required>
+      <option>Autumn</option><option>Spring</option><option>Summer</option>
+    </select>
+  </label>
+  <label>Subject<br>
+    <select name="subject" id="subject" required onchange="syncPapers()">
+      {% for s in subjects %}
+        <option value="{{ s }}">{{ 'Maths' if s=='maths' else ('Reading' if s=='reading' else 'SPaG') }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Paper<br>
+    <select name="paper" id="paper" required></select>
+  </label>
+  <label>Title (optional)<br><input type="text" name="title" placeholder="Auto-generated if blank"></label>
+  {% if current_user.is_admin %}
+    <label>Class<br>
+      <select name="class_id" required>
+        {% for c in classes %}
+          <option value="{{ c.id }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  {% else %}
+    <input type="hidden" name="class_id" value="{{ current_user.class_id }}">
+    <div>Class: <strong>{{ current_user.klass.name }}</strong></div>
+  {% endif %}
+  <button class="button" type="submit">Create</button>
+</form>
+<script>
+  const paperMap = {{ papers|tojson }};
+  function syncPapers() {
+    const subject = document.getElementById('subject').value;
+    const paper = document.getElementById('paper');
+    const values = paperMap[subject] || [];
+    paper.innerHTML = values.map(v => `<option value="${v}">${v}</option>`).join('');
+  }
+  syncPapers();
+</script>
+{% endblock %}

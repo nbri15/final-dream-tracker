@@ -1,0 +1,77 @@
+{% extends "layout.html" %}
+{% block title %}Year 6 Home — Dream Tracker{% endblock %}
+{% block content %}
+<h1>{{ klass.name }} — Year 6 Home</h1>
+
+<section class="card">
+  <h2>Action needed</h2>
+  <form method="get" class="inline" action="{{ url_for('y6_home') }}" style="margin-bottom: 0.75rem;">
+    {% if is_admin %}
+      <label>Class<br>
+        <select name="class">
+          {% for c in classes if c.year_group == 6 %}
+            <option value="{{ c.id }}" {{ 'selected' if (selected_class_id|string == c.id|string) else '' }}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    {% endif %}
+    <label>Year<br>
+      <select name="year">
+        {% for y in years %}
+          <option value="{{ y.id }}" {{ 'selected' if y.id == selected_year_id else '' }}>{{ y.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="button" type="submit">Apply</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Action</th>
+        <th>Details</th>
+        <th>Count</th>
+        <th>Fix</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in missing_assessments %}
+      <tr>
+        <td>Missing assessment results</td>
+        <td>{{ row.subject_label }} — {{ row.term }} ({{ row.year_label }})</td>
+        <td>{{ row.missing_count }}</td>
+        <td><a class="button" href="{{ row.fix_href }}">Fix now</a></td>
+      </tr>
+      {% endfor %}
+
+      {% for row in missing_writing %}
+      <tr>
+        <td>Missing Writing entries/judgements</td>
+        <td>Writing — {{ row.term }} ({{ row.year_label }})</td>
+        <td>{{ row.missing_count }}</td>
+        <td><a class="button" href="{{ writing_fix_href }}">Fix now</a></td>
+      </tr>
+      {% endfor %}
+
+      <tr>
+        <td>Overdue interventions</td>
+        <td>Active interventions with review due date before today</td>
+        <td>{{ overdue_interventions_count if has_review_due_date else 0 }}</td>
+        <td>
+          {% if has_review_due_date %}
+            <a class="button" href="{{ interventions_fix_href }}">Fix now</a>
+          {% else %}
+            <span class="muted">Unavailable</span>
+          {% endif %}
+        </td>
+      </tr>
+
+      {% if not missing_assessments and not missing_writing and (overdue_interventions_count == 0 or not has_review_due_date) %}
+      <tr>
+        <td colspan="4" style="text-align:center; color:#6b7280;">No action needed.</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

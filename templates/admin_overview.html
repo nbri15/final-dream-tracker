@@ -1,0 +1,103 @@
+{% extends "layout.html" %}
+{% block title %}Admin — Home{% endblock %}
+
+{% block content %}
+<h1>Admin — Home</h1>
+
+<section class="card">
+  <h2 style="margin-top:0;">Filters</h2>
+  <form method="get" class="inline" action="{{ url_for('admin_home') }}">
+    <label>Academic year<br>
+      <select name="year">
+        {% for y in years %}
+          <option value="{{ y.id }}" {{ 'selected' if y.id == sel_year_id else '' }}>{{ y.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>Term<br>
+      <select name="term">
+        <option value="Autumn" {{ 'selected' if sel_term=='Autumn' else '' }}>Autumn</option>
+        <option value="Spring" {{ 'selected' if sel_term=='Spring' else '' }}>Spring</option>
+        <option value="Summer" {{ 'selected' if sel_term=='Summer' else '' }}>Summer</option>
+      </select>
+    </label>
+
+    <label>Gender<br>
+      <select name="gender">
+        <option value=""  {{ 'selected' if ''  == sel_gender else '' }}>All</option>
+        <option value="F" {{ 'selected' if 'F' == sel_gender else '' }}>F</option>
+        <option value="M" {{ 'selected' if 'M' == sel_gender else '' }}>M</option>
+      </select>
+    </label>
+
+    <label>PP<br>
+      <select name="pp">
+        <option value=""  {{ 'selected' if ''  == sel_pp else '' }}>All</option>
+        <option value="1" {{ 'selected' if '1' == sel_pp else '' }}>Yes</option>
+        <option value="0" {{ 'selected' if '0' == sel_pp else '' }}>No</option>
+      </select>
+    </label>
+
+    <label>LAPS<br>
+      <select name="laps">
+        <option value=""  {{ 'selected' if ''  == sel_laps else '' }}>All</option>
+        <option value="1" {{ 'selected' if '1' == sel_laps else '' }}>Yes</option>
+        <option value="0" {{ 'selected' if '0' == sel_laps else '' }}>No</option>
+      </select>
+    </label>
+
+    <label>Service child<br>
+      <select name="svc">
+        <option value=""  {{ 'selected' if ''  == sel_svc else '' }}>All</option>
+        <option value="1" {{ 'selected' if '1' == sel_svc else '' }}>Yes</option>
+        <option value="0" {{ 'selected' if '0' == sel_svc else '' }}>No</option>
+      </select>
+    </label>
+
+    <button class="button" type="submit">Apply</button>
+    <a class="button" href="{{ url_for('admin_home') }}">Clear</a>
+  </form>
+</section>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem;">
+  {% for card in class_cards %}
+  <section class="card">
+    <h2 style="margin-top:0;">{{ card.name }}{% if card.year_group %} — Year {{ card.year_group }}{% endif %}</h2>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(140px,1fr));gap:0.75rem;">
+      {% for item in card.subjects %}
+      <a href="{{ item.table_url }}" style="text-decoration:none;color:inherit;border:1px solid #e5e7eb;border-radius:10px;padding:0.5rem;display:block;">
+        <div style="font-weight:600;margin-bottom:0.25rem;">{{ item.label }}</div>
+        <canvas id="{{ item.chart_id }}" height="120"></canvas>
+        <div><small>On track: <strong>{{ item.on_track_count }}</strong> ({{ item.on_track }}%)</small></div>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+
+<script>
+  const cards = {{ class_cards|tojson }};
+  cards.forEach((card) => {
+    card.subjects.forEach((item) => {
+      const el = document.getElementById(item.chart_id);
+      if (!el) return;
+      new Chart(el, {
+        type: 'pie',
+        data: {
+          labels: ['Working towards', 'Working at', 'Working above/exceeding'],
+          datasets: [{
+            data: [item.wts_count || 0, item.ot_count || 0, item.gds_count || 0],
+            backgroundColor: ['#fee2e2', '#dcfce7', '#ffedd5']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } }
+        }
+      });
+    });
+  });
+</script>
+{% endblock %}

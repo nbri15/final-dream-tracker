@@ -1,0 +1,593 @@
+{% extends "layout.html" %}
+{% block title %}Dashboard — Dream Tracker{% endblock %}
+{% block content %}
+
+<style>
+  .score-input { width: 64px; padding: 4px 6px; }
+  .muted-row  { background: #f9fafb; color: #6b7280; }
+  .center     { text-align: center; }
+  .term-divider { border-left: 1px solid #e5e7eb; }
+  .add-pupil-link { color: #6b7280; text-decoration: none; display: inline-block; width: 100%; }
+  .add-pupil-link:hover { text-decoration: underline; }
+  .save-status { margin-left: 8px; color: #6b7280; font-size: 0.9em; transition: opacity .6s ease; }
+  .band-select { min-width: 160px; }
+</style>
+
+{% if not current_user.is_authenticated %}
+  <h1>Welcome</h1>
+  <p>Please <a href="{{ url_for('login') }}">log in</a> to manage your class.</p>
+
+  <h2>Classes</h2>
+  <ul>
+    {% for c in classes %}
+      <li>{{ c.name }}</li>
+    {% endfor %}
+  </ul>
+
+{% else %}
+
+  {% if is_admin %}
+    {% set page_title = (klass and klass.name) or "All classes" %}
+  {% else %}
+    {% set page_title = klass.name %}
+  {% endif %}
+
+  <h1>{{ page_title }}{% if is_admin or mode == 'table' %} — {{ subject_label }}{% endif %}</h1>
+  {% if mode == 'table' and selected_class_id != "all" and selected_class_id %}<a class="button" href="{{ url_for('report_class', class_id=selected_class_id, year=selected_year_id, subject=subject) }}">Print class report</a>{% endif %}
+
+  {% if not is_admin and klass and klass.year_group %}
+    <p><em>Year group: Year {{ klass.year_group }}</em></p>
+  {% endif %}
+
+  <section class="card">
+    <h2>Action needed</h2>
+    {% if action_needed %}
+      <ul>
+        {% for alert in action_needed %}
+          <li>
+            <a href="{{ alert.link }}">{{ alert.title }}</a>:
+            <strong>{{ alert.count }}</strong>
+            {% if alert.severity == 'red' %}<span class="band band-wts">High</span>{% elif alert.severity == 'amber' %}<span class="band" style="background:#fef3c7;color:#92400e;">Watch</span>{% else %}<span class="band band-ot">OK</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No current alerts 🎉</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>{{ 'Overview filters' if (not is_admin and mode == 'home') else 'Filter results' }}</h2>
+    <form method="get" class="inline" action="{{ url_for('dashboard', subject=subject) }}">
+      <input type="hidden" name="mode" value="{{ mode if is_admin else 'home' }}">
+      {% if not is_admin and mode == 'home' %}
+      <label>Subject<br>
+        <select name="subject">
+          {% for s in ['maths','reading','spag','writing'] %}
+            <option value="{{ s }}" {{ 'selected' if s == subject else '' }}>{{ 'Maths' if s=='maths' else ('Reading' if s=='reading' else ('SPaG' if s=='spag' else 'Writing')) }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      {% endif %}
+
+      {% if is_admin %}
+        <label>Class<br>
+          <select name="class">
+            <option value="all" {{ 'selected' if selected_class_id == 'all' else '' }}>All classes</option>
+            {% for c in classes %}
+              <option value="{{ c.id }}" {{ 'selected' if (selected_class_id|string == c.id|string) else '' }}>
+                {{ c.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+      {% endif %}
+
+      <label>Year<br>
+        <select name="year">
+          {% for y in years %}
+            <option value="{{ y.id }}" {{ 'selected' if y.id == selected_year_id else '' }}>{{ y.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      {% if not is_admin and mode == 'home' %}
+      <label>Term<br>
+        <select name="term">
+          <option value="Autumn" {{ 'selected' if filters.term=='Autumn' else '' }}>Autumn</option>
+          <option value="Spring" {{ 'selected' if filters.term=='Spring' else '' }}>Spring</option>
+          <option value="Summer" {{ 'selected' if filters.term=='Summer' else '' }}>Summer</option>
+        </select>
+      </label>
+      {% endif %}
+
+      <label>Gender<br>
+        <select name="gender"><option value=""  {{ 'selected' if ''  == filters.gender else '' }}>All</option><option value="F" {{ 'selected' if 'F' == filters.gender else '' }}>F</option><option value="M" {{ 'selected' if 'M' == filters.gender else '' }}>M</option></select>
+      </label>
+      <label>PP<br>
+        <select name="pp"><option value=""  {{ 'selected' if ''  == filters.pp else '' }}>All</option><option value="1" {{ 'selected' if '1' == filters.pp else '' }}>Yes</option><option value="0" {{ 'selected' if '0' == filters.pp else '' }}>No</option></select>
+      </label>
+      <label>LAPS<br>
+        <select name="laps"><option value=""  {{ 'selected' if ''  == filters.laps else '' }}>All</option><option value="1" {{ 'selected' if '1' == filters.laps else '' }}>Yes</option><option value="0" {{ 'selected' if '0' == filters.laps else '' }}>No</option></select>
+      </label>
+      <label>Service child<br>
+        <select name="svc"><option value=""  {{ 'selected' if ''  == filters.svc else '' }}>All</option><option value="1" {{ 'selected' if '1' == filters.svc else '' }}>Yes</option><option value="0" {{ 'selected' if '0' == filters.svc else '' }}>No</option></select>
+      </label>
+
+      {% if is_admin or mode == 'table' %}
+      <label>Min %<br><input type="number" name="min_pct" min="0" max="100" step="1" value="{{ filters.min_pct }}"></label>
+      <label>Max %<br><input type="number" name="max_pct" min="0" max="100" step="1" value="{{ filters.max_pct }}"></label>
+      <label>Band<br>
+        <select name="band"><option value="" {{ 'selected' if '' == filters.band else '' }}>All</option><option value="wts" {{ 'selected' if 'wts' == filters.band else '' }}>Working towards</option><option value="ot" {{ 'selected' if 'ot' == filters.band else '' }}>Working at</option><option value="gds" {{ 'selected' if 'gds' == filters.band else '' }}>Exceeding</option></select>
+      </label>
+      {% endif %}
+
+      <button class="button" type="submit">Apply</button>
+      <a class="button" href="{{ url_for('dashboard', subject=subject, mode=mode if is_admin else 'home') }}">Clear</a>
+      {% if not is_admin %}
+        <a class="button" href="{{ url_for('dashboard', subject=subject, mode='table', class=selected_class_id, year=selected_year_id, term=filters.term, gender=filters.gender, pp=filters.pp, laps=filters.laps, svc=filters.svc) }}">View table</a>
+      {% endif %}
+    </form>
+  </section>
+
+  {% if not is_admin and mode == 'home' %}
+    <section class="card">
+      <h2>Dashboard charts</h2>
+      <form class="inline" id="dashboardChartFilters">
+        <label>Subject<br>
+          <select name="subject" id="chartSubject">
+            <option value="all">All</option>
+            <option value="maths" {{ 'selected' if subject=='maths' else '' }}>Maths</option>
+            <option value="reading" {{ 'selected' if subject=='reading' else '' }}>Reading</option>
+            <option value="spag" {{ 'selected' if subject=='spag' else '' }}>SPaG</option>
+            <option value="writing" {{ 'selected' if subject=='writing' else '' }}>Writing</option>
+          </select>
+        </label>
+        <label>Group<br>
+          <select name="group" id="chartGroup">
+            <option value="all">All</option>
+            <option value="boys">Boys</option>
+            <option value="girls">Girls</option>
+            <option value="pp">PP</option>
+            <option value="non_pp">Non-PP</option>
+            <option value="laps">LAPs</option>
+            <option value="service">Service child</option>
+          </select>
+        </label>
+      </form>
+      <div class="kpis">
+        <div><canvas id="bandsChart"></canvas></div>
+        <div><canvas id="onTrackChart"></canvas></div>
+        <div><canvas id="ppCompareChart"></canvas></div>
+      </div>
+    </section>
+    <section class="card">
+      <h2>PP Gap (WA+)</h2>
+      <p id="ppGapHeadline">PP 0% | Non-PP 0% | Gap 0pp</p>
+    </section>
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+    <script>
+      window.dashboardConfig = {
+        apiUrl: "{{ url_for('api_dashboard_summary') }}",
+        year: "{{ selected_year_id }}",
+        term: "{{ filters.term }}",
+        classId: "{{ selected_class_id }}"
+      };
+    </script>
+  {% endif %}
+
+  {% if is_admin or mode == 'table' %}
+
+  <!-- KPIs -->
+  <section class="kpis">
+    {% for term, vals in kpi.items() %}
+      <div class="card">
+        <h2>{{ term }}</h2>
+        <ul>
+          <li><strong>{{ vals.count }}</strong> results (filtered)</li>
+          <li>Working towards ARE: <strong>{{ vals.wts }}</strong> <span>({{ vals.pct_wts }}%)</span></li>
+          <li>Working at ARE: <strong>{{ vals.ot }}</strong> <span>({{ vals.pct_ot }}%)</span></li>
+          <li>Exceeding ARE: <strong>{{ vals.gds }}</strong> <span>({{ vals.pct_gds }}%)</span></li>
+          {% if is_admin %}
+            <li>On-Track + (At+Exceed): <strong>{{ vals.ot_plus }}</strong> <span>({{ vals.pct_ot_plus }}%)</span></li>
+          {% endif %}
+        </ul>
+      </div>
+    {% endfor %}
+  </section>
+
+  <!-- Results table -->
+  <section>
+    <h2>Pupils & results <span id="save-status" class="save-status" aria-live="polite"></span></h2>
+
+    <div class="table-scroll">
+    <table class="table-sticky">
+      <thead>
+        <tr>
+          <th rowspan="3">No.</th>
+          <th rowspan="3">Name</th>
+          {% if is_admin and (selected_class_id == 'all') %}
+            <th rowspan="3">Class</th>
+          {% endif %}
+          <th rowspan="3">Gender</th>
+          <th rowspan="3">PP</th>
+          <th rowspan="3">LAPS</th>
+          <th rowspan="3">Service</th>
+
+          <th class="term-divider" colspan="3">Autumn</th>
+          <th class="term-divider" colspan="3">Spring</th>
+          <th class="term-divider" colspan="3">Summer</th>
+          <th rowspan="3">Actions</th>
+        </tr>
+
+        <tr>
+          <th class="term-divider">{{ paper_labels[0] }}</th><th>{{ paper_labels[1] }}</th><th>Combined</th>
+          <th class="term-divider">{{ paper_labels[0] }}</th><th>{{ paper_labels[1] }}</th><th>Combined</th>
+          <th class="term-divider">{{ paper_labels[0] }}</th><th>{{ paper_labels[1] }}</th><th>Combined</th>
+        </tr>
+
+        <tr>
+          {% set terms = ['Autumn','Spring','Summer'] %}
+          {% for t in terms %}
+            <th class="term-divider" colspan="3" style="font-weight:normal">
+              {% if subject != "writing" %}
+                {% set g = (gap_links.get(t) if gap_links else None) %}
+                {% if g and klass %}
+                  GAP:
+                  {% for paper in gap_papers %}
+                    {% if g.get(paper) %}
+                      <a href="{{ url_for('assessment_analysis', assessment_id=g.get(paper)) }}">{{ paper }}</a>
+                    {% else %}{{ paper }}{% endif %}
+                    <a class="flag" title="Propose 6 pupils below 55% (closest) for {{ paper }}"
+                       href="{{ url_for('propose_interventions', class_id=klass.id, year_id=selected_year_id, term=t, subject=subject, paper=paper) }}">🚩</a>
+                    {% if not loop.last %}|{% endif %}
+                  {% endfor %}
+                {% else %}
+                  &nbsp;
+                {% endif %}
+              {% else %}&nbsp;{% endif %}
+            </th>
+          {% endfor %}
+        </tr>
+      </thead>
+
+      <tbody>
+        {% if pupils %}
+          {% for p in pupils %}
+            {% set rA = results_by_pupil.get(p.id, {}).get('Autumn') %}
+            {% set rS = results_by_pupil.get(p.id, {}).get('Spring') %}
+            {% set rU = results_by_pupil.get(p.id, {}).get('Summer') %}
+
+            <tr>
+              <td>{{ p.number or '' }}</td>
+              <td><a href="{{ url_for('pupil_page', pupil_id=p.id, year=selected_year_id, subject=subject) }}">{{ p.name }}</a></td>
+
+              {% if is_admin and (selected_class_id == 'all') %}
+                <td>{{ p.klass.name }}</td>
+              {% endif %}
+
+              <td>{{ p.gender or '' }}</td>
+
+              <td class="checkbox-cell">
+                <input type="checkbox"
+                       {% if p.pupil_premium %}checked{% endif %}
+                       data-pupil-id="{{ p.id }}"
+                       data-field="pupil_premium"
+                       {% if not is_admin %}onchange="savePupilFlag(this)"{% else %}disabled{% endif %}>
+              </td>
+
+              <td class="checkbox-cell">
+                <input type="checkbox"
+                       {% if p.laps %}checked{% endif %}
+                       data-pupil-id="{{ p.id }}"
+                       data-field="laps"
+                       {% if not is_admin %}onchange="savePupilFlag(this)"{% else %}disabled{% endif %}>
+              </td>
+
+              <td class="checkbox-cell">
+                <input type="checkbox"
+                       {% if p.service_child %}checked{% endif %}
+                       data-pupil-id="{{ p.id }}"
+                       data-field="service_child"
+                       {% if not is_admin %}onchange="savePupilFlag(this)"{% else %}disabled{% endif %}>
+              </td>
+
+              {% if subject == "writing" %}
+                {% set wA = writing_by_pupil.get(p.id, {}).get('Autumn') %}
+                {% set wS = writing_by_pupil.get(p.id, {}).get('Spring') %}
+                {% set wU = writing_by_pupil.get(p.id, {}).get('Summer') %}
+                {% for term, w in [('Autumn', wA), ('Spring', wS), ('Summer', wU)] %}
+                  <td class="term-divider">
+                    {% if is_admin %}
+                      {{ w._band_label if w else '' }}
+                    {% else %}
+                      <select class="band-select" data-pupil="{{ p.id }}" data-year="{{ selected_year_id }}" data-term="{{ term }}">
+                        <option value="">Select…</option>
+                        {% for b in writing_bands %}
+                          <option value="{{ b }}" {{ 'selected' if w and w.band == b else '' }}>{{ writing_band_label(b) }}</option>
+                        {% endfor %}
+                      </select>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if is_admin %}—{% else %}<span class="writing-readonly">—</span>{% endif %}
+                  </td>
+                  <td class="combined-{{ term }}" data-writing-preview="{{ p.id }}:{{ term }}">
+                    {% if w %}<span class="band {{ w._band_css }}">{{ w._band_label }}</span>{% else %}—{% endif %}
+                  </td>
+                {% endfor %}
+              {% else %}
+                <!-- Autumn A / R / Combined -->
+                <td class="term-divider">
+                  {% if is_admin %}
+                    {{ rA._score_a if rA and rA._score_a is not none else '' }}
+                  {% else %}
+                    <input class="score-input"
+                           value="{% if rA and rA._score_a is not none %}{{ rA._score_a }}{% endif %}"
+                           data-pupil="{{ p.id }}"
+                           data-year="{{ selected_year_id }}"
+                           data-term="Autumn"
+                           data-field="arithmetic"
+                           inputmode="decimal">
+                  {% endif %}
+                </td>
+                <td>
+                  {% if is_admin %}
+                    {{ rA._score_b if rA and rA._score_b is not none else '' }}
+                  {% else %}
+                    <input class="score-input"
+                           value="{% if rA and rA._score_b is not none %}{{ rA._score_b }}{% endif %}"
+                           data-pupil="{{ p.id }}"
+                           data-year="{{ selected_year_id }}"
+                           data-term="Autumn"
+                           data-field="reasoning"
+                           inputmode="decimal">
+                  {% endif %}
+                </td>
+                <td class="combined-Autumn" data-combined-for="{{ p.id }}:Autumn">
+                  {% if rA %}
+                    <span class="band {{ rA._band_css }}">{{ rA.combined_pct }}% → {{ rA.summary }}</span>
+                  {% else %}—{% endif %}
+                </td>
+
+                <!-- Spring A / R / Combined -->
+                <td class="term-divider">
+                  {% if is_admin %}
+                    {{ rS._score_a if rS and rS._score_a is not none else '' }}
+                  {% else %}
+                    <input class="score-input"
+                           value="{% if rS and rS._score_a is not none %}{{ rS._score_a }}{% endif %}"
+                           data-pupil="{{ p.id }}"
+                           data-year="{{ selected_year_id }}"
+                           data-term="Spring"
+                           data-field="arithmetic"
+                           inputmode="decimal">
+                  {% endif %}
+                </td>
+                <td>
+                  {% if is_admin %}
+                    {{ rS._score_b if rS and rS._score_b is not none else '' }}
+                  {% else %}
+                    <input class="score-input"
+                           value="{% if rS and rS._score_b is not none %}{{ rS._score_b }}{% endif %}"
+                           data-pupil="{{ p.id }}"
+                           data-year="{{ selected_year_id }}"
+                           data-term="Spring"
+                           data-field="reasoning"
+                           inputmode="decimal">
+                  {% endif %}
+                </td>
+                <td class="combined-Spring" data-combined-for="{{ p.id }}:Spring">
+                  {% if rS %}
+                    <span class="band {{ rS._band_css }}">{{ rS.combined_pct }}% → {{ rS.summary }}</span>
+                  {% else %}—{% endif %}
+                </td>
+
+                <!-- Summer A / R / Combined -->
+                <td class="term-divider">
+                  {% if is_admin %}
+                    {{ rU._score_a if rU and rU._score_a is not none else '' }}
+                  {% else %}
+                    <input class="score-input"
+                           value="{% if rU and rU._score_a is not none %}{{ rU._score_a }}{% endif %}"
+                           data-pupil="{{ p.id }}"
+                           data-year="{{ selected_year_id }}"
+                           data-term="Summer"
+                           data-field="arithmetic"
+                           inputmode="decimal">
+                  {% endif %}
+                </td>
+                <td>
+                  {% if is_admin %}
+                    {{ rU._score_b if rU and rU._score_b is not none else '' }}
+                  {% else %}
+                    <input class="score-input"
+                           value="{% if rU and rU._score_b is not none %}{{ rU._score_b }}{% endif %}"
+                           data-pupil="{{ p.id }}"
+                           data-year="{{ selected_year_id }}"
+                           data-term="Summer"
+                           data-field="reasoning"
+                           inputmode="decimal">
+                  {% endif %}
+                </td>
+                <td class="combined-Summer" data-combined-for="{{ p.id }}:Summer">
+                  {% if rU %}
+                    <span class="band {{ rU._band_css }}">{{ rU.combined_pct }}% → {{ rU.summary }}</span>
+                  {% else %}—{% endif %}
+                </td>
+              {% endif %}
+
+              <td>
+                {% if subject != 'writing' %}<a class="button" href="{{ url_for('result_new', pupil_id=p.id, subject=subject) }}">Add result page</a>{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="999" class="center" style="padding:14px; color:#6b7280;">
+              No pupils yet. Start by adding your class list
+            </td>
+          </tr>
+        {% endif %}
+
+        {% if not is_admin %}
+          <tr class="muted-row">
+            <td colspan="999" class="center">
+              <a class="add-pupil-link" href="{{ url_for('pupil_new') }}">+ Add pupil</a>
+              {% if not pupils %}<br><small>Start by adding your class list</small>{% endif %}
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  {% endif %}
+
+  <script>
+    async function postJSON(url, payload) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) throw new Error(data.error || "Save failed");
+      return data;
+    }
+
+    function clearInputFeedback(el) {
+      el.style.backgroundColor = "";
+      el.style.outline = "";
+    }
+
+    function showStatus(text, isError = false, fade = false) {
+      const statusEl = document.getElementById("save-status");
+      if (!statusEl) return;
+      statusEl.textContent = text;
+      statusEl.style.opacity = "1";
+      statusEl.style.color = isError ? "#b91c1c" : "#6b7280";
+      if (fade) {
+        setTimeout(() => {
+          statusEl.style.opacity = "0";
+        }, 900);
+      }
+    }
+
+    function bandClassFromSummary(summary) {
+      const text = (summary || "").toLowerCase();
+      if (text.includes("exceed") || text.includes("greater") || text.includes("gds")) return "band-gds";
+      if (text.includes("at") || text.includes("on-track") || text.includes("on track") || text.includes("ot")) return "band-ot";
+      return "band-wts";
+    }
+
+    function nextScoreInput(el) {
+      const inputs = Array.from(document.querySelectorAll(".score-input"));
+      const idx = inputs.indexOf(el);
+      if (idx >= 0 && idx < inputs.length - 1) return inputs[idx + 1];
+      return null;
+    }
+
+    async function saveScore(el) {
+      const payload = {
+        pupil_id: el.dataset.pupil,
+        year_id: el.dataset.year,
+        term: el.dataset.term,
+        field: el.dataset.field,
+        value: el.value,
+        subject: "{{ subject }}"
+      };
+      showStatus("Saving…");
+      try {
+        const out = await postJSON("/api/results/quick_save", payload);
+
+        const combinedCell = document.querySelector(`[data-combined-for="${payload.pupil_id}:${payload.term}"]`);
+        if (combinedCell) {
+          if (out.combined_pct == null || !out.summary) {
+            combinedCell.textContent = "—";
+          } else {
+            const bandClass = bandClassFromSummary(out.summary);
+            combinedCell.innerHTML = `<span class="band ${bandClass}">${out.combined_pct}% → ${out.summary}</span>`;
+          }
+        }
+        el.style.backgroundColor = "#dcfce7";
+        el.style.outline = "1px solid #16a34a";
+        setTimeout(() => clearInputFeedback(el), 500);
+        showSavedToast("Saved");
+        showStatus("", false, true);
+        return true;
+      } catch (e) {
+        el.style.backgroundColor = "#fee2e2";
+        el.style.outline = "1px solid #dc2626";
+        showStatus("Error", true, false);
+        return false;
+      }
+    }
+
+    if ("{{ subject }}" !== "writing") {
+    document.querySelectorAll(".score-input").forEach((input) => {
+      input.addEventListener("focus", () => input.select());
+      input.addEventListener("blur", () => saveScore(input));
+      input.addEventListener("keydown", async (ev) => {
+        if (ev.key !== "Enter") return;
+        ev.preventDefault();
+        const ok = await saveScore(input);
+        if (!ok) return;
+        const nxt = nextScoreInput(input);
+        if (nxt) {
+          nxt.focus();
+          nxt.select();
+        }
+      });
+    });
+    }
+
+    async function saveWritingBand(el) {
+      const payload = { pupil_id: el.dataset.pupil, year_id: el.dataset.year, term: el.dataset.term, band: el.value };
+      try {
+        showStatus("Saving…");
+        const out = await postJSON("/api/writing/quick_save", payload);
+        const preview = document.querySelector(`[data-writing-preview="${payload.pupil_id}:${payload.term}"]`);
+        if (preview) {
+          preview.innerHTML = out.band_label ? `<span class="band ${out.band_css}">${out.band_label}</span>` : "—";
+        }
+        el.style.backgroundColor = "#dcfce7";
+        el.style.outline = "1px solid #16a34a";
+        setTimeout(() => clearInputFeedback(el), 500);
+        showSavedToast("Saved");
+        showStatus("", false, true);
+      } catch (e) {
+        el.style.backgroundColor = "#fee2e2";
+        el.style.outline = "1px solid #dc2626";
+        showStatus("Error", true, false);
+      }
+    }
+
+    document.querySelectorAll(".band-select").forEach((input) => {
+      input.addEventListener("change", () => saveWritingBand(input));
+    });
+
+    async function savePupilFlag(el) {
+      const payload = {
+        pupil_id: el.dataset.pupilId,
+        field: el.dataset.field,
+        value: el.checked
+      };
+      try {
+        showStatus("Saving…");
+        await postJSON("/api/pupils/quick_update", payload);
+        el.style.outline = "2px solid #86efac";
+        setTimeout(() => (el.style.outline = ""), 350);
+        showSavedToast("Saved");
+        showStatus("", false, true);
+      } catch (e) {
+        el.style.outline = "2px solid #fca5a5";
+        showStatus("Error", true, false);
+      }
+    }
+
+  </script>
+
+{% endif %}
+
+{% endblock %}

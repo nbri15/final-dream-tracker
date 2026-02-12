@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+{% block title %}Import pupils — Dream Tracker{% endblock %}
+{% block content %}
+<h1>Import pupils (CSV)</h1>
+<p>Expected columns: <code>name</code>, <code>number</code> (optional), <code>gender</code> (M/F),
+<code>pupil_premium</code>, <code>laps</code>, <code>service_child</code>.</p>
+
+<form method="post" enctype="multipart/form-data">
+  {{ form.csrf_token }}
+  <label>CSV file<br>{{ form.csv_file() }}</label>
+  {% if current_user.is_admin %}
+    <label>Class<br>{{ form.class_id() }}</label>
+  {% endif %}
+  {{ form.token }}
+  <div>
+    {{ form.submit_preview(class_="button") }}
+    {{ form.submit_confirm(class_="button") }}
+  </div>
+</form>
+
+{% if preview_rows %}
+  <h2>Preview</h2>
+  <table>
+    <thead><tr><th>#</th><th>Status</th><th>Message</th><th>Name</th></tr></thead>
+    <tbody>
+      {% for r in preview_rows %}
+        <tr>
+          <td>{{ r.row }}</td>
+          <td>{{ r.status }}</td>
+          <td>{{ r.message }}</td>
+          <td>{{ r.name or '' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p>Click “Confirm Import” to proceed.</p>
+{% endif %}
+{% endblock %}

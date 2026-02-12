@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+{% block title %}Propose interventions — {{ klass.name }} ({{ term }} {{ year.label }}){% endblock %}
+{% block content %}
+<h1>Propose interventions — {{ klass.name }}</h1>
+<p><strong>{{ term }}</strong> · <strong>{{ paper }}</strong> · <strong>{{ year.label }}</strong></p>
+
+<form method="post">
+  <input type="hidden" name="class_id" value="{{ klass.id }}">
+  <input type="hidden" name="year_id" value="{{ year.id }}">
+  <input type="hidden" name="term" value="{{ term }}">
+  <input type="hidden" name="paper" value="{{ paper }}">
+  <input type="hidden" name="subject" value="{{ subject }}">
+
+  <table class="table-sticky">
+    <thead>
+      <tr><th>Select</th><th>Pupil</th><th>%</th><th>Focus areas</th><th><label for="teacher-note">Teacher note</label></th></tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td class="checkbox-cell">
+          <input aria-label="Select {{ row.pupil.name }}" type="checkbox" name="selected[]" value="{{ row.pupil.id }}"
+                 {{ 'checked' if row.pupil.id in pre_ids or row.existing else '' }}>
+        </td>
+        <td>{{ row.pupil.number or '' }} {{ row.pupil.name }}</td>
+        <td>{{ row.pct }}%</td>
+        <td>{{ row.focus or 'General' }}</td>
+        <td>
+          <textarea id="teacher-note" name="teacher_note_{{ row.pupil.id }}" rows="2" cols="35" placeholder="Teacher notes...">{{ row.existing.teacher_note if row.existing else '' }}</textarea>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p>
+    <button class="button" type="submit">Save interventions</button>
+    <a class="button" href="{{ url_for('dashboard', subject=subject, **{'class': klass.id, 'year': year.id}) }}">Cancel</a>
+  </p>
+</form>
+{% endblock %}

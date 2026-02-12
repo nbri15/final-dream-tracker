@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+{% block title %}Admin — Promote pupils{% endblock %}
+{% block content %}
+<h1>Promote pupils</h1>
+
+<section class="card">
+  <p><strong>Current academic year:</strong> {{ current_year.label if current_year else 'Not set' }}</p>
+  <p><strong>Next academic year:</strong> {{ next_year_label }}</p>
+
+  {% if missing_year_groups %}
+    <p style="color:#991b1b;"><strong>Cannot promote yet.</strong> Missing year groups: {{ missing_year_groups|join(', ') }}.</p>
+  {% else %}
+    <p>Year 1–5 pupils will move up one year group. Year 6 pupils will move to Archive. Existing results remain linked to their original academic year.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Preview</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Class</th>
+        <th>Year group</th>
+        <th>Pupils</th>
+        <th>After promotion</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in preview_rows %}
+      <tr>
+        <td>{{ row.klass.name }}</td>
+        <td>{{ row.klass.year_group if row.klass.year_group is not none else '—' }}</td>
+        <td>{{ row.pupil_count }}</td>
+        <td>{{ row.next_label }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <form method="post" style="margin-top:1rem;">
+    <input type="hidden" name="confirm_promote" value="1">
+    <button class="button" type="submit" {% if missing_year_groups %}disabled{% endif %}>Promote into next academic year</button>
+  </form>
+</section>
+{% endblock %}

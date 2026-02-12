@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Dream Tracker{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    /* Page */
+    html, body { height: 100%; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: block;           /* important: prevent accidental flex layouts */
+      width: 100%;
+      overflow-x: hidden;
+    }
+
+    /* Top bar */
+    header.bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding: 0.75rem 1rem;
+      background: #111827;
+      color: #e5e7eb;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    header.bar .brand {
+      color: #e5e7eb;
+      text-decoration: none;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    header.bar .brand-wrap {
+      display: inline-flex;
+      align-items: center;
+      position: relative;
+    }
+    .school-motto {
+      position: absolute;
+      left: calc(100% + 0.75rem);
+      font-family: "Georgia", "Times New Roman", cursive;
+      font-style: italic;
+      font-size: 0.85rem;
+      color: #9ca3af;
+      white-space: nowrap;
+      opacity: 0.9;
+    }
+    .menu-btn {
+      border: 1px solid #4b5563;
+      border-radius: 6px;
+      background: #0b1220;
+      color: #e5e7eb;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 0.35rem 0.6rem;
+      cursor: pointer;
+    }
+    header.bar a { color: #e5e7eb; text-decoration: none; }
+    header.bar nav.spacer { flex: 1; }
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: 260px;
+      background: #111827;
+      color: #e5e7eb;
+      z-index: 30;
+      box-shadow: 3px 0 18px rgba(0, 0, 0, 0.25);
+      transform: translateX(-204px);
+      transition: transform 0.2s ease;
+      overflow-y: auto;
+    }
+    .hover-zone {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 20px;
+      z-index: 25;
+      background: transparent;
+    }
+    .sidebar.open {
+      transform: translateX(0);
+    }
+    .sidebar-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid #374151;
+      font-weight: 700;
+    }
+    .sidebar-close {
+      border: 1px solid #4b5563;
+      border-radius: 6px;
+      background: #0b1220;
+      color: #e5e7eb;
+      line-height: 1;
+      padding: 0.2rem 0.45rem;
+      cursor: pointer;
+    }
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      padding: 0.7rem;
+    }
+    .sidebar-nav .section-title {
+      color: #9ca3af;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      margin: 0.45rem 0 0.1rem;
+      padding: 0 0.45rem;
+    }
+    .sidebar-link {
+      color: #e5e7eb;
+      text-decoration: none;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      background: #1f2937;
+      padding: 0.45rem 0.6rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sidebar-link:hover { background: #253247; }
+    .sidebar-link.active { background: #374151; border-color: #4b5563; }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.5);
+      z-index: 20;
+    }
+
+    /* Buttons */
+    a.button, button.button, .button {
+      display: inline-block;
+      padding: 0.4rem 0.75rem;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      background: #1f2937;
+      color: #e5e7eb;
+      white-space: nowrap;
+    }
+
+    /* Main content */
+    main { padding: 1rem; }
+    body.has-sidebar main,
+    body.has-sidebar header.bar {
+      padding-left: calc(56px + 1rem);
+    }
+    body.has-sidebar.sidebar-open main,
+    body.has-sidebar.sidebar-open header.bar {
+      padding-left: calc(260px + 1rem);
+    }
+
+    /* Flash messages */
+    ul.flash { list-style: none; padding: 0; margin: 0 0 1rem; }
+    ul.flash li { padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; }
+    ul.flash li.success { background: #064e3b; color: #d1fae5; }
+    ul.flash li.error { background: #7f1d1d; color: #fee2e2; }
+
+    /* Cards + tables */
+    section.card, .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 0.5rem; border-top: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
+    th { background: #f9fafb; }
+    .term-divider { border-left: 3px solid #cbd5e1; }
+
+    .subject-tabs {
+      display: inline-flex;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .subject-tab {
+      display: inline-block;
+      padding: 0.45rem 0.85rem;
+      color: #374151;
+      text-decoration: none;
+      background: #f9fafb;
+      font-weight: 500;
+    }
+    .subject-tab + .subject-tab {
+      border-left: 2px solid #d1d5db;
+    }
+    .subject-tab:hover {
+      background: #f3f4f6;
+    }
+    .subject-tab.active {
+      background: #e5e7eb;
+      color: #111827;
+      font-weight: 700;
+    }
+
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+    fieldset.card { border: 1px solid #e5e7eb; }
+    legend { padding: 0 0.25rem; }
+    form.inline { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: end; }
+    label { display: inline-block; }
+    select, input[type="text"], input[type="number"], input[type="file"], textarea {
+      padding: 0.35rem 0.5rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+    }
+
+    /* Colour coding for bands */
+    .band { padding: 0.15rem 0.4rem; border-radius: 6px; display: inline-block; }
+    .band-wts { background: #fee2e2; color: #7f1d1d; }
+    .band-ot  { background: #dcfce7; color: #065f46; }
+    .band-gds { background: #ffedd5; color: #9a3412; }
+
+    .flag { color: #b91c1c; text-decoration: none; margin-left: 6px; }
+    .flag:hover { text-decoration: underline; }
+    small.muted { color: #6b7280; }
+
+    tbody tr:nth-child(even) { background: #fafafa; }
+    .table-sticky thead th { position: sticky; top: 0; z-index: 2; }
+    .checkbox-cell { text-align: center; width: 60px; }
+    input:focus, select:focus, textarea:focus, button:focus, a:focus {
+      outline: 2px solid #2563eb;
+      outline-offset: 1px;
+    }
+    .toast {
+      position: fixed; right: 12px; bottom: 12px; background: #111827; color: #fff;
+      padding: 8px 10px; border-radius: 8px; opacity: 0; pointer-events: none; transition: opacity .2s;
+      font-size: 0.9rem;
+    }
+    .toast.show { opacity: .9; }
+
+    .table-scroll {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .y6-home-table th,
+    .y6-home-table td { white-space: nowrap; }
+    .y6-name { font-weight: 700; }
+    .y6-badges { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.2rem; }
+    .tiny-badge {
+      display: inline-block;
+      padding: 0.1rem 0.35rem;
+      border-radius: 999px;
+      background: #e5e7eb;
+      color: #374151;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .score-chip {
+      display: inline-block;
+      min-width: 2.6rem;
+      text-align: center;
+      padding: 0.15rem 0.45rem;
+      border-radius: 6px;
+      font-weight: 700;
+    }
+    .score-na { background: #e5e7eb; color: #4b5563; }
+    .score-low { background: #fee2e2; color: #991b1b; }
+    .score-good { background: #dcfce7; color: #166534; }
+
+    @media (max-width: 900px) {
+      .hover-zone {
+        display: none;
+      }
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      header.bar {
+        gap: 0.5rem;
+      }
+      header.bar .button {
+        padding: 0.35rem 0.6rem;
+      }
+      body.has-sidebar main,
+      body.has-sidebar header.bar,
+      body.has-sidebar.sidebar-open main,
+      body.has-sidebar.sidebar-open header.bar {
+        padding-left: 1rem;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .school-motto {
+        display: none;
+      }
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  {% set sidebar_params = namespace(values={}) %}
+  {% for key in ['year','term','class','gender','pp','laps','svc','min_pct','max_pct','band'] %}
+    {% if request.args.get(key) %}
+      {% set _ = sidebar_params.values.update({key: request.args.get(key)}) %}
+    {% endif %}
+  {% endfor %}
+  {% set sidebar_subject = request.view_args.get('subject') if request.view_args and request.view_args.get('subject') else request.args.get('subject', 'maths') %}
+  {% set sidebar_mode = request.args.get('mode', 'table' if current_user.is_admin else 'home') %}
+  {% set reports_href = url_for('reports', **sidebar_params.values) %}
+  {% set is_year6_menu = y6_nav is not none %}
+
+  {% if current_user.is_authenticated %}
+    <div id="sidebarOverlay" class="overlay" hidden></div>
+    <div id="sidebarHoverZone" class="hover-zone" aria-hidden="true"></div>
+    <aside id="sidebar" class="sidebar" aria-label="Main menu">
+      <div class="sidebar-head">
+        <span>Dream Tracker</span>
+        <button id="menuCloseBtn" class="sidebar-close" aria-label="Close menu" type="button">×</button>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="section-title">Teacher</div>
+        {% if is_year6_menu %}
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'y6_home' or (request.endpoint == 'dashboard' and sidebar_mode == 'home') else '' }}" href="{{ url_for('y6_home', **sidebar_params.values) }}">Home</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint in ['y6_sats_tracker', 'sats_page'] else '' }}" href="{{ url_for('y6_sats_tracker', **sidebar_params.values) }}">SATs Tracker</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint in ['y6_writing', 'writing_dashboard'] or (request.endpoint == 'dashboard' and sidebar_subject == 'writing') else '' }}" href="{{ url_for('y6_writing', **sidebar_params.values) }}">Writing</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint in ['y6_reports', 'reports'] else '' }}" href="{{ url_for('y6_reports', **sidebar_params.values) }}">Reports</a>
+        {% else %}
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'home' else '' }}" href="{{ url_for('dashboard', subject='maths', mode='home', **sidebar_params.values) }}">Home</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'table' and sidebar_subject == 'maths' else '' }}" href="{{ url_for('dashboard', subject='maths', mode='table', **sidebar_params.values) }}">Maths</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'table' and sidebar_subject == 'reading' else '' }}" href="{{ url_for('dashboard', subject='reading', mode='table', **sidebar_params.values) }}">Reading</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'table' and sidebar_subject == 'spag' else '' }}" href="{{ url_for('dashboard', subject='spag', mode='table', **sidebar_params.values) }}">SPaG</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'table' and sidebar_subject == 'writing' else '' }}" href="{{ url_for('dashboard', subject='writing', mode='table', **sidebar_params.values) }}">Writing</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'assessments' else '' }}" href="{{ url_for('assessments') }}">GAP</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'interventions' else '' }}" href="{{ url_for('interventions') }}">Interventions</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ reports_href }}">Reports</a>
+        {% endif %}
+
+        {% if current_user.is_admin %}
+          <div class="section-title">Admin</div>
+          <a class="sidebar-link {{ 'active' if request.endpoint in ['admin_home','admin_overview'] else '' }}" href="{{ url_for('admin_home') }}">Home</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint in ['interventions','admin_interventions'] else '' }}" href="{{ url_for('interventions') }}">Interventions</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_years' else '' }}" href="{{ url_for('admin_years') }}">Years</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_promote' else '' }}" href="{{ url_for('admin_promote') }}">Promote</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_users' else '' }}" href="{{ url_for('admin_users') }}">Users</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_classes' else '' }}" href="{{ url_for('admin_classes') }}">Classes</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_archive' else '' }}" href="{{ url_for('admin_archive') }}">Archive</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'import_results' else '' }}" href="{{ url_for('import_results') }}">Import data</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'assessments' else '' }}" href="{{ url_for('assessments') }}">GAP</a>
+
+          <div class="section-title">Teacher</div>
+          <a class="sidebar-link {{ 'active' if request.endpoint in ['sats_page','y6_sats_tracker'] else '' }}" href="{{ url_for('y6_home', year=sats_nav.year_id, **{'class': sats_nav.class_id}) if sats_nav else url_for('y6_home') }}">📊 SATs (Year 6)</a>
+        {% endif %}
+      </nav>
+    </aside>
+  {% endif %}
+
+  <header class="bar">
+    {% if current_user.is_authenticated %}
+      <button id="menuBtn" class="menu-btn" aria-label="Open menu" type="button">☰</button>
+    {% endif %}
+    <div class="brand-wrap">
+      <a class="brand" href="{{ url_for('index') }}">Dream Tracker</a>
+      <span class="school-motto">Rooted in God’s love, everyone growing together to be the best that we can be</span>
+    </div>
+    <nav class="spacer"></nav>
+
+    {% if current_user.is_authenticated %}
+      <span>Logged in as <strong>{{ current_user.username }}</strong></span>
+      <a class="button" href="{{ url_for('logout') }}">Logout</a>
+    {% else %}
+      <a class="button" href="{{ url_for('login') }}">Login</a>
+    {% endif %}
+  </header>
+
+  <main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flash">
+          {% for category, message in messages %}
+            <li class="{{ category }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+  <div id="save-toast" class="toast" role="status" aria-live="polite">Saved</div>
+  <script>window.showSavedToast=function(msg="Saved"){const t=document.getElementById("save-toast"); if(!t)return; t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),900);}</script>
+  <script>
+    (function () {
+      const menuBtn = document.getElementById("menuBtn");
+      const menuCloseBtn = document.getElementById("menuCloseBtn");
+      const sidebar = document.getElementById("sidebar");
+      const overlay = document.getElementById("sidebarOverlay");
+      const hoverZone = document.getElementById("sidebarHoverZone");
+      if (!menuBtn || !sidebar || !overlay) return;
+
+      const mobileMq = window.matchMedia("(max-width: 900px)");
+      const hoverMq = window.matchMedia("(hover: hover)");
+      const body = document.body;
+      const CLOSE_DELAY_MS = 150;
+      let hoverCloseTimer;
+      let sidebarPinned = sessionStorage.getItem("dt_sidebar_pinned") === "true";
+      body.classList.add("has-sidebar");
+
+      function setPinned(value) {
+        sidebarPinned = value;
+        sessionStorage.setItem("dt_sidebar_pinned", value ? "true" : "false");
+      }
+
+      function clearHoverCloseTimer() {
+        if (!hoverCloseTimer) return;
+        clearTimeout(hoverCloseTimer);
+        hoverCloseTimer = null;
+      }
+
+      function openSidebar({ pinned = false } = {}) {
+        if (pinned) setPinned(true);
+        sidebar.classList.add("open");
+        const shouldShowOverlay = mobileMq.matches || sidebarPinned;
+        body.classList.toggle("sidebar-open", shouldShowOverlay);
+        overlay.hidden = !shouldShowOverlay;
+        menuBtn.setAttribute("aria-label", "Close menu");
+      }
+
+      function closeSidebar(returnFocus = true) {
+        sidebar.classList.remove("open");
+        body.classList.remove("sidebar-open");
+        overlay.hidden = true;
+        menuBtn.setAttribute("aria-label", "Open menu");
+        clearHoverCloseTimer();
+        setPinned(false);
+        if (returnFocus) menuBtn.focus();
+      }
+
+      function hoverEnabled() {
+        return !mobileMq.matches && hoverMq.matches;
+      }
+
+      function scheduleHoverClose() {
+        if (!hoverEnabled() || sidebarPinned) return;
+        clearHoverCloseTimer();
+        hoverCloseTimer = setTimeout(() => {
+          if (!sidebarPinned) closeSidebar(false);
+        }, CLOSE_DELAY_MS);
+      }
+
+      function syncForViewport() {
+        if (mobileMq.matches) {
+          closeSidebar(false);
+          return;
+        }
+        overlay.hidden = true;
+        body.classList.remove("sidebar-open");
+        if (sidebarPinned) {
+          openSidebar({ pinned: true });
+        } else {
+          closeSidebar(false);
+        }
+      }
+
+      menuBtn.addEventListener("click", function () {
+        const isOpen = sidebar.classList.contains("open");
+        if (isOpen) {
+          closeSidebar();
+        } else {
+          openSidebar({ pinned: true });
+        }
+      });
+
+      function handleHoverEnter() {
+        if (!hoverEnabled()) return;
+        clearHoverCloseTimer();
+        if (!sidebarPinned) openSidebar();
+      }
+
+      if (hoverZone) {
+        hoverZone.addEventListener("mouseenter", handleHoverEnter);
+        hoverZone.addEventListener("mouseleave", scheduleHoverClose);
+      }
+      sidebar.addEventListener("mouseenter", handleHoverEnter);
+      sidebar.addEventListener("mouseleave", scheduleHoverClose);
+      overlay.addEventListener("mouseenter", handleHoverEnter);
+      overlay.addEventListener("mouseleave", scheduleHoverClose);
+
+      if (menuCloseBtn) menuCloseBtn.addEventListener("click", () => closeSidebar());
+      overlay.addEventListener("click", () => closeSidebar());
+      window.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && sidebar.classList.contains("open")) closeSidebar();
+      });
+      mobileMq.addEventListener("change", syncForViewport);
+      hoverMq.addEventListener("change", syncForViewport);
+
+      syncForViewport();
+    })();
+  </script>
+</body>
+</html>

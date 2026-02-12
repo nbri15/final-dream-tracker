@@ -1,0 +1,52 @@
+
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;background:#0f172a;color:#e2e8f0}
+a{color:#93c5fd;text-decoration:none}
+a:hover{text-decoration:underline}
+main{padding:1rem}
+.bar{display:flex;gap:1rem;align-items:center;padding:.75rem 1rem;background:#111827;border-bottom:1px solid #1f2937}
+.brand{font-weight:700}
+.spacer{flex:1}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin:1rem 0}
+.card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:1rem}
+.row{display:flex;align-items:center;gap:1rem}
+.button{display:inline-block;background:#0b1220;border:1px solid #374151;color:#e2e8f0;padding:.5rem .75rem;border-radius:.5rem}
+ul#pupilList{list-style:none;padding:0;margin:.5rem 0}
+ul#pupilList li{padding:.5rem 0;border-bottom:1px solid #1f2937;display:flex;justify-content:space-between;align-items:center}
+table{width:100%;border-collapse:collapse;background:#0b1220}
+th,td{border:1px solid #1f2937;padding:.5rem;text-align:left}
+th{background:#0f1a33}
+.flash{list-style:none;padding:0;margin:1rem 0}
+.flash li{padding:.5rem;border-radius:.25rem;margin:.25rem 0}
+.flash li.error{background:#3f1d1d;border:1px solid #6b1c1c}
+.flash li.success{background:#143021;border:1px solid #1f6b3b}
+
+.y6-home-table th,
+.y6-home-table td { white-space: nowrap; }
+th.th-rotate { height: 140px; vertical-align: bottom; padding: 0; white-space: nowrap; }
+th.th-rotate > div { transform: rotate(-90deg); transform-origin: bottom left; width: 20px; margin-bottom: 10px; }
+th.th-rotate > div > span { display: inline-block; padding: 6px 8px; }
+.y6-name { font-weight: 700; }
+.y6-badges { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.2rem; }
+.filter-bar { display:flex; flex-wrap:wrap; gap:.75rem; align-items:flex-end; }
+.filter-bar label { display:flex; flex-direction:column; gap:.25rem; }
+.tiny-badge {
+  display: inline-block;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #374151;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.score-chip {
+  display: inline-block;
+  min-width: 2.6rem;
+  text-align: center;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  font-weight: 700;
+}
+.score-na { background: #e5e7eb; color: #4b5563; }
+.score-low { background: #fee2e2; color: #991b1b; }
+.score-good { background: #dcfce7; color: #166534; }

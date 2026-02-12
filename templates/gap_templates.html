@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+{% block title %}GAP templates{% endblock %}
+{% block content %}
+<h1>GAP templates</h1>
+<p><a class="button" href="{{ url_for('gap_template_new') }}">+ New template</a></p>
+<table class="table-sticky">
+<thead><tr><th>Title</th><th>Subject</th><th>Paper</th><th>Year</th><th>Year group</th><th>Term</th><th>Version</th><th>Active</th><th>Actions</th></tr></thead>
+<tbody>
+{% for t in items %}
+<tr>
+  <td>{{ t.title or 'Untitled' }}</td><td>{{ t.subject }}</td><td>{{ t.paper }}</td><td>{{ t.academic_year.label }}</td><td>{{ t.year_group }}</td><td>{{ t.term }}</td><td>{{ t.version }}</td><td>{{ 'Yes' if t.is_active else 'No' }}</td>
+  <td><a href="{{ url_for('gap_template_edit', template_id=t.id) }}">Edit</a></td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% endblock %}

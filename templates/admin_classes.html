@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+{% block title %}Admin — Classes{% endblock %}
+{% block content %}
+<h1>Class management</h1>
+
+<section class="card">
+  <h2>Assign teacher to class</h2>
+  <form method="post" class="inline">
+    <label>Teacher<br>
+      <select name="teacher_id" required>
+        <option value="">Select teacher</option>
+        {% for t in teachers %}
+          <option value="{{ t.id }}">{{ t.username }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>Class<br>
+      <select name="class_id" required>
+        <option value="">Select class</option>
+        {% for c in classes %}
+          <option value="{{ c.id }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <button type="submit" class="button">Assign</button>
+  </form>
+  <p><small class="muted">Multiple teachers can be assigned to the same class.</small></p>
+</section>
+
+<section class="card">
+  <h2>All classes</h2>
+  <div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>Class</th>
+        <th>Year group</th>
+        <th>Status</th>
+        <th>Teachers</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in classes %}
+        <tr>
+          <td>{{ c.name }}</td>
+          <td>{% if c.year_group %}Year {{ c.year_group }}{% else %}—{% endif %}</td>
+          <td>
+            {% if c.is_archived or c.is_archive %}
+              <span class="band band-wts">Archived</span>
+            {% else %}
+              <span class="band band-ot">Live</span>
+            {% endif %}
+          </td>
+          <td>
+            {% set names = c.teachers | rejectattr('is_admin') | map(attribute='username') | list %}
+            {{ names|join(', ') if names else '—' }}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

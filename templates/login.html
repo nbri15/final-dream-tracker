@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% block title %}Log in — Dream Tracker{% endblock %}
+{% block content %}
+<h1>Teacher / Admin login</h1>
+<form method="post">
+  {{ form.csrf_token }}
+  <label>Username<br>{{ form.username(size=32) }}</label><br><br>
+  <label>Password<br>{{ form.password(size=32) }}</label><br><br>
+  {{ form.submit(class_="button") }}
+</form>
+<p>Demo accounts after seeding:
+  <code>teacher1/password1</code>,
+  <code>teacher2/password2</code>,
+  <code>admin/"admin 123!"</code>
+</p>
+{% endblock %}

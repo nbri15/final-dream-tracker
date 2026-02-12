@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% block title %}{{ title }} — Dream Tracker{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+<form method="post">
+  {{ form.csrf_token }}
+  <div><label>No.<br>{{ form.number() }}</label></div>
+  <div><label>Name<br>{{ form.name(size=40) }}</label></div>
+  <div><label>Gender<br>{{ form.gender() }}</label></div>
+  <div>{{ form.pupil_premium() }} <label>Pupil Premium</label></div>
+  <div>{{ form.laps() }} <label>LAPS</label></div>
+  <div>{{ form.service_child() }} <label>Service child</label></div>
+  <div><br>{{ form.submit(class_="button") }}</div>
+</form>
+{% endblock %}

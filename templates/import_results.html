@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+{% block title %}Import class data — Dream Tracker{% endblock %}
+{% block content %}
+<h1>Import class data (Pupils + Scores)</h1>
+
+<p>
+  Base columns for all subjects:
+  <code>name</code> (required), <code>gender</code> (optional M/F),
+  <code>pupil_premium</code>, <code>laps</code>, <code>service_child</code> (optional flags),
+  <code>note</code> / <code>notes</code> (optional).
+</p>
+<p id="subject-help"><small class="muted"></small></p>
+
+<form method="post" enctype="multipart/form-data">
+  {{ form.csrf_token }}
+  <label>CSV file<br>{{ form.csv_file() }}</label>
+  <label>Academic year<br>{{ form.academic_year() }}</label>
+  <label>Term<br>{{ form.term() }}</label>
+  <label>Subject<br>{{ form.subject(id="import-subject") }}</label>
+  {% if current_user.is_admin %}
+    <label>Class<br>{{ form.class_id() }}</label>
+  {% endif %}
+  {{ form.token }}
+  <div>
+    {{ form.submit_preview(class_="button") }}
+    {{ form.submit_confirm(class_="button") }}
+  </div>
+</form>
+
+{% if preview_rows %}
+  <h2>Preview</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Status</th><th>Action</th>
+        <th>Name</th><th>Gender</th><th>PP</th><th>LAPS</th><th>Service</th>
+        <th>Score A</th><th>Score B</th><th>Band</th><th>Note</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in preview_rows %}
+        <tr>
+          <td>{{ r.row }}</td>
+          <td>{{ r.status }}</td>
+          <td>{{ r.action }}</td>
+          <td>{{ r.name }}</td>
+          <td>{{ r.gender or '' }}</td>
+          <td>{{ 'Y' if r.pp else '' }}</td>
+          <td>{{ 'Y' if r.laps else '' }}</td>
+          <td>{{ 'Y' if r.svc else '' }}</td>
+          <td>{{ r.score_a if r.score_a is not none else '' }}</td>
+          <td>{{ r.score_b if r.score_b is not none else '' }}</td>
+          <td>{{ r.band if r.band is defined and r.band else '' }}</td>
+          <td>{{ r.note if r.note is defined and r.note else '' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p>Click “Confirm Import” to apply changes.</p>
+{% endif %}
+
+<script>
+  const helpMap = {
+    maths: "Maths columns: arithmetic, reasoning.",
+    reading: "Reading columns: reading_p1, reading_p2.",
+    spag: "SPaG columns: spelling, grammar.",
+    writing: "Writing columns: band (or writing_band). Accepted values: working_towards/wts, working_at/ot, exceeding/gds."
+  };
+  const subjectEl = document.getElementById("import-subject");
+  const helpEl = document.querySelector("#subject-help small");
+  function refreshHelp() {
+    const v = (subjectEl && subjectEl.value) || "maths";
+    if (helpEl) helpEl.textContent = helpMap[v] || helpMap.maths;
+  }
+  if (subjectEl) {
+    subjectEl.addEventListener("change", refreshHelp);
+    refreshHelp();
+  }
+</script>
+{% endblock %}

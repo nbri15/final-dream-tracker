@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+{% block title %}GAP analysis — Dream Tracker{% endblock %}
+{% block content %}
+<h1>GAP analysis</h1>
+<p><a class="button" href="{{ url_for('gap_templates') }}">Manage templates</a></p>
+<form method="get" class="inline" action="{{ url_for('assessments') }}">
+  <label>Subject<br>
+    <select name="subject" onchange="this.form.submit()">
+      {% for s in subjects %}
+        <option value="{{ s }}" {{ 'selected' if s == subject else '' }}>{{ 'Maths' if s=='maths' else ('Reading' if s=='reading' else 'SPaG') }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</form>
+<section class="card">
+  <div class="table-scroll">
+<table>
+  <thead><tr><th>Title</th><th>Subject</th><th>Paper</th><th>Class</th><th>Year</th><th>Term</th><th>Actions</th></tr></thead>
+  <tbody>
+    {% for a in assessments %}
+    <tr>
+      <td>{{ a.title }}</td>
+      <td>{{ a.subject|upper }}</td>
+      <td>{{ a.paper }}</td>
+      <td>{{ a.klass.name }}</td>
+      <td>{{ a.academic_year.label }}</td>
+      <td>{{ a.term }}</td>
+      <td>
+        <a href="{{ url_for('assessment_questions', assessment_id=a.id) }}">Questions</a> |
+        <a href="{{ url_for('assessment_scores', assessment_id=a.id) }}">Scores</a> |
+        <a href="{{ url_for('assessment_analysis', assessment_id=a.id) }}">Analysis</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+  </div>
+</section>
+{% endblock %}

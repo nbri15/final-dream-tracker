@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+{% block title %}Term settings — {{ klass.name }}{% endblock %}
+{% block content %}
+<h1>Term settings — {{ klass.name }}</h1>
+<form method="post">
+  {{ form.csrf_token }}
+  <label>Academic year<br>{{ form.academic_year() }}</label>
+  <fieldset class="card">
+    <legend><strong>Autumn</strong></legend>
+    <label>Arithmetic max<br>{{ form.autumn_arith_max(step="0.1") }}</label><br><br>
+    <label>Reasoning max<br>{{ form.autumn_reason_max(step="0.1") }}</label><br><br>
+    <label>Reading Paper 1 max<br>{{ form.autumn_reading_p1_max(step="0.1") }}</label><br><br>
+    <label>Reading Paper 2 max<br>{{ form.autumn_reading_p2_max(step="0.1") }}</label><br><br>
+    <label>Spelling max<br>{{ form.autumn_spelling_max(step="0.1") }}</label><br><br>
+    <label>Grammar max<br>{{ form.autumn_grammar_max(step="0.1") }}</label>
+  </fieldset>
+  <fieldset class="card">
+    <legend><strong>Spring</strong></legend>
+    <label>Arithmetic max<br>{{ form.spring_arith_max(step="0.1") }}</label><br><br>
+    <label>Reasoning max<br>{{ form.spring_reason_max(step="0.1") }}</label><br><br>
+    <label>Reading Paper 1 max<br>{{ form.spring_reading_p1_max(step="0.1") }}</label><br><br>
+    <label>Reading Paper 2 max<br>{{ form.spring_reading_p2_max(step="0.1") }}</label><br><br>
+    <label>Spelling max<br>{{ form.spring_spelling_max(step="0.1") }}</label><br><br>
+    <label>Grammar max<br>{{ form.spring_grammar_max(step="0.1") }}</label>
+  </fieldset>
+  <fieldset class="card">
+    <legend><strong>Summer</strong></legend>
+    <label>Arithmetic max<br>{{ form.summer_arith_max(step="0.1") }}</label><br><br>
+    <label>Reasoning max<br>{{ form.summer_reason_max(step="0.1") }}</label><br><br>
+    <label>Reading Paper 1 max<br>{{ form.summer_reading_p1_max(step="0.1") }}</label><br><br>
+    <label>Reading Paper 2 max<br>{{ form.summer_reading_p2_max(step="0.1") }}</label><br><br>
+    <label>Spelling max<br>{{ form.summer_spelling_max(step="0.1") }}</label><br><br>
+    <label>Grammar max<br>{{ form.summer_grammar_max(step="0.1") }}</label>
+  </fieldset>
+  <br>
+  {{ form.submit(class_="button") }}
+</form>
+{% endblock %}

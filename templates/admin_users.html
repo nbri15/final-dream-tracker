@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+{% block title %}Admin — Users{% endblock %}
+{% block content %}
+<h1>User management</h1>
+<p><a class="button" href="{{ url_for('admin_user_new') }}">New user</a></p>
+<section class="card">
+  <div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Admin?</th>
+        <th>Active?</th>
+        <th>Assigned classes</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.username }}</td>
+        <td>{{ 'Yes' if u.is_admin else 'No' }}</td>
+        <td>{{ 'Yes' if u.is_active else 'No' }}</td>
+        <td>
+          {% if u.classes %}
+            {{ u.classes | map(attribute='name') | join(', ') }}
+          {% elif u.klass %}
+            {{ u.klass.name }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td>
+          <a class="button" href="{{ url_for('admin_user_edit', user_id=u.id) }}">Edit</a>
+          <a class="button" href="{{ url_for('admin_user_reset_password', user_id=u.id) }}">Reset password</a>
+          <form method="post" action="{{ url_for('admin_user_toggle_active', user_id=u.id) }}" class="inline" style="display:inline-flex;">
+            <button type="submit" class="button">{{ 'Disable' if u.is_active else 'Enable' }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

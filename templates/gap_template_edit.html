@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+{% block title %}Edit template{% endblock %}
+{% block content %}
+<h1>Edit template v{{ template.version }} — {{ template.subject }} {{ template.paper }}</h1>
+<p>{{ template.academic_year.label }} · Year {{ template.year_group }} · {{ template.term }} · {{ 'Active' if template.is_active else 'Archived' }}</p>
+<form method="post" action="{{ url_for('gap_template_publish', template_id=template.id) }}" style="display:inline"><button class="button" type="submit">Publish</button></form>
+<form method="post" action="{{ url_for('gap_template_new_version', template_id=template.id) }}" style="display:inline"><button class="button" type="submit">Create new version</button></form>
+<form method="post" action="{{ url_for('gap_template_copy_next_year', template_id=template.id) }}" style="display:inline"><button class="button" type="submit">Copy to next year</button></form>
+
+<form method="post">
+<table class="table-sticky"><thead><tr><th>#</th><th>Max</th><th>Type</th><th>Strand</th><th>Notes</th></tr></thead><tbody id="qbody">
+{% for q in questions %}<tr><td><input type="number" name="qn[]" value="{{ q.number }}"></td><td><input type="number" step="0.1" name="max[]" value="{{ q.max_mark }}"></td><td><input name="qtype[]" value="{{ q.question_type or '' }}"></td><td><input name="strand[]" value="{{ q.strand or '' }}"></td><td><input name="notes[]" value="{{ q.notes or '' }}"></td></tr>{% endfor %}
+</tbody></table>
+<button class="button" type="button" onclick="addRow()">+ Add</button>
+<button class="button" type="submit">Save</button>
+</form>
+<script>function addRow(){document.getElementById('qbody').insertAdjacentHTML('beforeend','<tr><td><input type="number" name="qn[]"></td><td><input type="number" step="0.1" name="max[]" value="1"></td><td><input name="qtype[]"></td><td><input name="strand[]"></td><td><input name="notes[]"></td></tr>')}</script>
+{% endblock %}

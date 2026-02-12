@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+{% block title %}Scores — {{ assessment.title }}{% endblock %}
+{% block content %}
+<h1>Scores — {{ assessment.title }}</h1>
+<p>Enter marks per pupil per question. Leave blank for zero.</p>
+
+<form method="post">
+  <table>
+    <thead>
+      <tr>
+        <th>Pupil</th>
+        {% for q in questions %}
+          <th>Q{{ q.number }}<br><small>/ {{ q.max_mark }}</small></th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pupils %}
+        <tr>
+          <td>{{ p.number or '' }} {{ p.name }}</td>
+          {% for q in questions %}
+            {% set val = scores.get((p.id, q.id), 0) %}
+            <td><input type="number" step="0.1" name="score_{{ p.id }}_{{ q.id }}" value="{{ val }}" min="0"></td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p><button class="button" type="submit">Save scores</button></p>
+</form>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block title %}Pupil report{% endblock %}
+{% block content %}
+<style>@media print {.button, header.bar {display:none;} main{padding:0;} }</style>
+<h1>Pupil report — {{ pupil.name }}</h1>
+<p>{{ year.label }}</p>
+<button class="button" onclick="window.print()">Print</button>
+<a class="button" href="{{ url_for('report_parent_summary', pupil_id=pupil.id, year=year.id) }}">Parent summary</a>
+<table class="table-sticky"><thead><tr><th>Term</th><th>Maths %/Band</th><th>Reading %/Band</th><th>SPaG %/Band</th><th>Writing</th></tr></thead><tbody>
+{% for t in terms %}
+<tr>
+<td>{{ t }}</td>
+<td>{{ by_term[t].core.get('maths',{}).get('combined','') }} {{ by_term[t].core.get('maths',{}).get('band','') }}</td>
+<td>{{ by_term[t].core.get('reading',{}).get('combined','') }} {{ by_term[t].core.get('reading',{}).get('band','') }}</td>
+<td>{{ by_term[t].core.get('spag',{}).get('combined','') }} {{ by_term[t].core.get('spag',{}).get('band','') }}</td>
+<td>{{ by_term[t].get('writing_band','') }}</td>
+</tr>
+{% endfor %}</tbody></table>
+<h2>Interventions</h2>
+<ul>{% for it in interventions %}<li>{{ it.term }} {{ it.paper }} — Focus: {{ it.focus_areas or 'General' }}{% if it.teacher_note %} | Teacher: {{ it.teacher_note }}{% endif %}{% if it.support_plan %} | Plan: {{ it.support_plan }}{% endif %}</li>{% endfor %}</ul>
+{% endblock %}

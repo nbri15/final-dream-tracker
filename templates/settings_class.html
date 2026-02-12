@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% block title %}Class settings — {{ klass.name }}{% endblock %}
+{% block content %}
+<h1>Class settings — {{ klass.name }}</h1>
+<form method="post">
+  {{ form.csrf_token }}
+  <label>Year group<br>{{ form.year_group() }}</label>
+  <br><br>
+  {{ form.submit(class_="button") }}
+</form>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+{% block title %}Class report{% endblock %}
+{% block content %}
+<style>@media print {.button, header.bar {display:none;} main{padding:0;} }</style>
+<h1>Class report — {{ klass.name }}</h1>
+<p>{{ year.label }} · {{ subject|upper }}</p>
+<button class="button" onclick="window.print()">Print</button>
+<table class="table-sticky"><thead><tr><th>Pupil</th>{% for t in terms %}<th>{{ t }}</th>{% endfor %}</tr></thead><tbody>
+{% for p in pupils %}
+<tr><td>{{ p.name }}</td>{% for t in terms %}{% set r = by_key.get((p.id,t)) %}<td>{{ r.combined_pct if r else '' }} {{ r.summary if r else '' }}</td>{% endfor %}</tr>
+{% endfor %}
+</tbody></table>
+<h2>Interventions</h2>
+<table><thead><tr><th>Pupil</th><th>Term</th><th>Paper</th><th>Focus</th><th>Teacher note</th><th>Support plan</th></tr></thead><tbody>
+{% for it in interventions %}<tr><td>{{ it.pupil.name }}</td><td>{{ it.term }}</td><td>{{ it.paper }}</td><td>{{ it.focus_areas or '' }}</td><td>{{ it.teacher_note or '' }}</td><td>{{ it.support_plan or '' }}</td></tr>{% endfor %}
+</tbody></table>
+{% endblock %}

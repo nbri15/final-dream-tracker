@@ -1,0 +1,141 @@
+{% extends "layout.html" %}
+{% block title %}Writing — Dream Tracker{% endblock %}
+{% block content %}
+<style>
+  .band-select { min-width: 170px; }
+  .center { text-align: center; }
+</style>
+
+{% if is_admin %}
+  {% set page_title = (klass and klass.name) or "All classes" %}
+{% else %}
+  {% set page_title = klass.name %}
+{% endif %}
+
+<h1>{{ page_title }} — Writing</h1>
+
+<section class="card">
+  <form method="get" class="inline" action="{{ url_for('writing_dashboard') }}">
+    {% if is_admin %}
+      <label>Class<br>
+        <select name="class">
+          <option value="all" {{ 'selected' if selected_class_id == 'all' else '' }}>All classes</option>
+          {% for c in classes %}
+            <option value="{{ c.id }}" {{ 'selected' if (selected_class_id|string == c.id|string) else '' }}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    {% endif %}
+
+    <label>Year<br>
+      <select name="year">
+        {% for y in years %}
+          <option value="{{ y.id }}" {{ 'selected' if y.id == selected_year_id else '' }}>{{ y.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <button class="button" type="submit">Apply</button>
+    <a class="button" href="{{ url_for('writing_dashboard') }}">Clear</a>
+  </form>
+</section>
+
+<section>
+  <div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th>Name</th>
+        {% if is_admin and (selected_class_id == 'all') %}
+          <th>Class</th>
+        {% endif %}
+        <th class="term-divider">Autumn</th>
+        <th class="term-divider">Spring</th>
+        <th class="term-divider">Summer</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pupils %}
+        {% set rA = writing_by_pupil.get(p.id, {}).get('Autumn') %}
+        {% set rS = writing_by_pupil.get(p.id, {}).get('Spring') %}
+        {% set rU = writing_by_pupil.get(p.id, {}).get('Summer') %}
+        <tr>
+          <td>{{ p.number or '' }}</td>
+          <td><a href="{{ url_for('pupil_page', pupil_id=p.id, year=selected_year_id, subject='writing') }}">{{ p.name }}</a></td>
+          {% if is_admin and (selected_class_id == 'all') %}
+            <td>{{ p.klass.name }}</td>
+          {% endif %}
+
+          {% for term, r in [('Autumn', rA), ('Spring', rS), ('Summer', rU)] %}
+            <td class="term-divider">
+              <select class="band-select"
+                      data-pupil="{{ p.id }}"
+                      data-year="{{ selected_year_id }}"
+                      data-term="{{ term }}"
+                      data-current-css="{{ r._band_css if r else '' }}"
+                      >
+                <option value="">Select…</option>
+                {% for b in writing_bands %}
+                  <option value="{{ b }}" {{ 'selected' if r and r.band == b else '' }}>{{ writing_band_label(b) }}</option>
+                {% endfor %}
+              </select>
+              <small class="band-preview {{ r._band_css if r else '' }}" data-preview-for="{{ p.id }}:{{ term }}">{{ r._band_label if r else '' }}</small>
+            </td>
+          {% endfor %}
+        </tr>
+      {% else %}
+        <tr><td colspan="999" class="center" style="padding:14px; color:#6b7280;">No pupils yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<script>
+  async function postJSON(url, payload) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) throw new Error(data.error || "Save failed");
+    return data;
+  }
+
+  function clearInputFeedback(el) {
+    el.style.backgroundColor = "";
+    el.style.outline = "";
+  }
+
+  async function saveWritingBand(el) {
+    if (!el.value) return;
+    const payload = {
+      pupil_id: el.dataset.pupil,
+      year_id: el.dataset.year,
+      term: el.dataset.term,
+      band: el.value
+    };
+    try {
+      const out = await postJSON("/api/writing/quick_save", payload);
+      const preview = document.querySelector(`[data-preview-for="${payload.pupil_id}:${payload.term}"]`);
+      if (preview) {
+        preview.classList.remove("band-wts", "band-ot", "band-gds");
+        if (out.band_css) preview.classList.add(out.band_css);
+        preview.textContent = out.band_label || "";
+      }
+      el.style.backgroundColor = "#dcfce7";
+      el.style.outline = "1px solid #16a34a";
+      setTimeout(() => clearInputFeedback(el), 500);
+    } catch (e) {
+      el.style.backgroundColor = "#fee2e2";
+      el.style.outline = "1px solid #dc2626";
+    }
+  }
+
+  document.querySelectorAll(".band-select").forEach((input) => {
+    input.addEventListener("change", () => saveWritingBand(input));
+  });
+</script>
+{% endblock %}

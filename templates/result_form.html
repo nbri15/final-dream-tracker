@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+{% block title %}{{ title }} — Dream Tracker{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+<p>Pupil: <strong>{{ pupil.name }}</strong></p>
+<form method="post">
+  {{ form.csrf_token }}
+  <div><label>Academic year<br>{{ form.academic_year() }}</label></div>
+  <div><label>Term<br>{{ form.term() }}</label></div>
+  <div><label>{{ paper_labels[0] }}<br>{{ form.arithmetic(step="0.1") }}</label></div>
+  <div><label>{{ paper_labels[1] }}<br>{{ form.reasoning(step="0.1") }}</label></div>
+  <div><label>Notes<br>{{ form.note(rows="3", cols="50") }}</label></div>
+  <div><br>
+    {{ form.submit(class_="button") }}
+    <button class="button" type="submit" name="save_next" value="1">Save & Next</button>
+  </div>
+
+</form>
+<p>Combined % and band will be calculated automatically.</p>
+{% endblock %}

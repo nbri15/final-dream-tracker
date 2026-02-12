@@ -1,0 +1,157 @@
+{% extends "layout.html" %}
+{% block title %}Year 6 SATs Tracker — Dream Tracker{% endblock %}
+{% block content %}
+<style>
+  .sats-col { width: 38px; min-width: 38px; max-width: 38px; }
+  .sats-vert { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; height: 140px; text-align: left; }
+  .sats-head-input { width: 28px; height: 130px; }
+  .sats-score-input { width: 30px; padding: 2px; text-align: center; }
+  .sats-top { vertical-align: bottom; text-align: center; }
+  .sats-group-divider { border-left: 1px solid #d1d5db; }
+  .muted-row { background: #f9fafb; color: #6b7280; }
+  .center { text-align: center; }
+  .add-pupil-link { color: #6b7280; text-decoration: none; display: inline-block; width: 100%; }
+  .add-pupil-link:hover { text-decoration: underline; }
+</style>
+
+<h1>{{ klass.name }} — Year 6 SATs tracker</h1>
+<p><small class="muted">Edit test names in headers. Scores autosave.</small></p>
+
+
+
+<section class="card">
+  <form method="get" class="inline" action="{{ url_for('dashboard', subject='maths') }}">
+    {% if is_admin %}
+      <label>Class<br>
+        <select name="class">
+          {% for c in classes %}
+            <option value="{{ c.id }}" {{ 'selected' if (selected_class_id|string == c.id|string) else '' }}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    {% endif %}
+    <label>Year<br>
+      <select name="year">
+        {% for y in years %}
+          <option value="{{ y.id }}" {{ 'selected' if y.id == selected_year_id else '' }}>{{ y.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="button" type="submit">Apply</button>
+  </form>
+</section>
+
+<table>
+  <thead>
+    {% set maths = headers_by_group.get('Maths', []) %}
+    {% set reading = headers_by_group.get('Reading', []) %}
+    {% set spag = headers_by_group.get('SPaG', []) %}
+    {% set all_headers = maths + reading + spag %}
+    <tr>
+      <th rowspan="2">No.</th>
+      <th rowspan="2">Name</th>
+      <th rowspan="2">PP</th>
+      <th rowspan="2">LAPS</th>
+      <th rowspan="2">Service</th>
+      <th class="sats-top" colspan="{{ maths|length }}">Maths</th>
+      <th class="sats-top sats-group-divider" colspan="{{ reading|length }}">Reading</th>
+      <th class="sats-top sats-group-divider" colspan="{{ spag|length }}">SPaG</th>
+    </tr>
+    <tr>
+      {% for h in all_headers %}
+      {% set is_group_start = loop.index == (maths|length + 1) or loop.index == (maths|length + reading|length + 1) %}
+      <th class="sats-col {{ 'sats-group-divider' if is_group_start else '' }}">
+        <div class="sats-vert">
+          <input
+            class="sats-head-input"
+            value="{{ h.header or '' }}"
+            data-role="header"
+            data-class-id="{{ klass.id }}"
+            data-year-id="{{ selected_year_id }}"
+            data-key="{{ h.key }}"
+            placeholder="">
+        </div>
+      </th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% if pupils %}
+      {% for p in pupils %}
+        <tr>
+          <td>{{ p.number or '' }}</td>
+          <td><a href="{{ url_for('pupil_page', pupil_id=p.id, year=selected_year_id, subject='maths') }}">{{ p.name }}</a></td>
+          <td class="center"><input type="checkbox" {% if p.pupil_premium %}checked{% endif %} data-pupil-id="{{ p.id }}" data-field="pupil_premium" {% if not is_admin %}onchange="savePupilFlag(this)"{% else %}disabled{% endif %}></td>
+          <td class="center"><input type="checkbox" {% if p.laps %}checked{% endif %} data-pupil-id="{{ p.id }}" data-field="laps" {% if not is_admin %}onchange="savePupilFlag(this)"{% else %}disabled{% endif %}></td>
+          <td class="center"><input type="checkbox" {% if p.service_child %}checked{% endif %} data-pupil-id="{{ p.id }}" data-field="service_child" {% if not is_admin %}onchange="savePupilFlag(this)"{% else %}disabled{% endif %}></td>
+          {% for h in all_headers %}
+            {% set is_group_start = loop.index == (maths|length + 1) or loop.index == (maths|length + reading|length + 1) %}
+            <td class="sats-col {{ 'sats-group-divider' if is_group_start else '' }}">
+              <input
+                class="sats-score-input"
+                value="{{ '' if scores.get((p.id, h.key)) is none else scores.get((p.id, h.key)) }}"
+                data-role="score"
+                data-pupil-id="{{ p.id }}"
+                data-year-id="{{ selected_year_id }}"
+                data-key="{{ h.key }}"
+                inputmode="decimal">
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    {% else %}
+      <tr>
+        <td colspan="999" class="center" style="padding:14px; color:#6b7280;">No pupils yet.</td>
+      </tr>
+    {% endif %}
+
+    {% if not is_admin %}
+      <tr class="muted-row">
+        <td colspan="999" class="center">
+          <a class="add-pupil-link" href="{{ url_for('pupil_new') }}">+ Add pupil</a>
+        </td>
+      </tr>
+    {% endif %}
+  </tbody>
+</table>
+
+<script>
+async function postJSON(url, payload) {
+  const res = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)});
+  if (!res.ok) throw new Error("Save failed");
+  return res.json();
+}
+
+async function savePupilFlag(el) {
+  await postJSON("/api/pupils/quick_update", {pupil_id: Number(el.dataset.pupilId), field: el.dataset.field, value: el.checked});
+}
+
+document.querySelectorAll('input[data-role="header"]').forEach((el) => {
+  el.dataset.prev = el.value;
+  el.addEventListener("blur", async () => {
+    if (el.dataset.prev === el.value) return;
+    try {
+      await postJSON("{{ url_for('api_sats_rename_header') }}", {class_id: Number(el.dataset.classId), year_id: Number(el.dataset.yearId), key: el.dataset.key, header: el.value});
+      el.dataset.prev = el.value;
+      el.style.borderColor = "#10b981";
+    } catch {
+      el.style.borderColor = "#dc2626";
+    }
+    setTimeout(() => { el.style.borderColor = ""; }, 700);
+  });
+});
+
+document.querySelectorAll('input[data-role="score"]').forEach((el) => {
+  const fn = async () => {
+    try {
+      await postJSON("{{ url_for('api_sats_quick_save') }}", {pupil_id: Number(el.dataset.pupilId), year_id: Number(el.dataset.yearId), key: el.dataset.key, value: el.value});
+      el.style.borderColor = "#10b981";
+    } catch {
+      el.style.borderColor = "#dc2626";
+    }
+    setTimeout(() => { el.style.borderColor = ""; }, 700);
+  };
+  el.addEventListener("blur", fn);
+});
+</script>
+{% endblock %}

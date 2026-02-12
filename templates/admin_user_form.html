@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+{% block title %}Admin — {{ title }}{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+<section class="card">
+  <form method="post">
+    {{ form.hidden_tag() }}
+    <p>
+      {{ form.username.label }}<br>
+      {{ form.username(size=40) }}
+      {% for e in form.username.errors %}<br><small class="muted">{{ e }}</small>{% endfor %}
+    </p>
+    {% if form.password is defined %}
+    <p>
+      {{ form.password.label }}<br>
+      {{ form.password(size=40) }}
+      {% for e in form.password.errors %}<br><small class="muted">{{ e }}</small>{% endfor %}
+    </p>
+    {% endif %}
+    <p>{{ form.is_admin() }} {{ form.is_admin.label }}</p>
+    <p>{{ form.is_active() }} {{ form.is_active.label }}</p>
+    <p>
+      {{ form.class_ids.label }}<br>
+      {{ form.class_ids(multiple=true, size=8) }}
+      {% for e in form.class_ids.errors %}<br><small class="muted">{{ e }}</small>{% endfor %}
+    </p>
+    <p>{{ form.submit(class_='button') }} <a class="button" href="{{ url_for('admin_users') }}">Cancel</a></p>
+  </form>
+</section>
+{% endblock %}

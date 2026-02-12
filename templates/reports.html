@@ -1,0 +1,146 @@
+{% extends "layout.html" %}
+{% block title %}Report Builder — Dream Tracker{% endblock %}
+{% block content %}
+
+<h1>Report Builder</h1>
+
+<section class="card">
+  <h2>Build report</h2>
+  <form method="get" action="{{ url_for('reports') }}" class="inline">
+    <label>Subject<br>
+      <select name="subject">
+        {% for sub in subjects %}
+          <option value="{{ sub }}" {{ 'selected' if dataset.subject == sub else '' }}>{{ 'Writing' if sub == 'writing' else sub|title if sub != 'spag' else 'SPaG' }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>Academic year<br>
+      <select name="year">
+        {% for y in years %}
+          <option value="{{ y.id }}" {{ 'selected' if dataset.year and dataset.year.id == y.id else '' }}>{{ y.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    {% if dataset.is_admin %}
+      <label>Class<br>
+        <select name="class">
+          <option value="all" {{ 'selected' if dataset.selected_class_id == 'all' else '' }}>All classes</option>
+          {% for c in dataset.classes %}
+            <option value="{{ c.id }}" {{ 'selected' if dataset.selected_class_id|string == c.id|string else '' }}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    {% endif %}
+
+    <input type="hidden" name="gender" value="{{ dataset.filters.gender }}">
+    <input type="hidden" name="pp" value="{{ dataset.filters.pp }}">
+    <input type="hidden" name="laps" value="{{ dataset.filters.laps }}">
+    <input type="hidden" name="svc" value="{{ dataset.filters.svc }}">
+    <input type="hidden" name="min_pct" value="{{ dataset.filters.min_pct }}">
+    <input type="hidden" name="max_pct" value="{{ dataset.filters.max_pct }}">
+    <input type="hidden" name="band" value="{{ dataset.filters.band }}">
+
+    <button class="button" type="submit">Preview</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Filters</h2>
+  <form method="get" action="{{ url_for('reports') }}" class="inline">
+    <input type="hidden" name="subject" value="{{ dataset.subject }}">
+    {% if dataset.year %}<input type="hidden" name="year" value="{{ dataset.year.id }}">{% endif %}
+    {% if dataset.is_admin %}<input type="hidden" name="class" value="{{ dataset.selected_class_id }}">{% endif %}
+
+    <label>Gender<br>
+      <select name="gender">
+        <option value="" {{ 'selected' if '' == dataset.filters.gender else '' }}>All</option>
+        <option value="F" {{ 'selected' if 'F' == dataset.filters.gender else '' }}>F</option>
+        <option value="M" {{ 'selected' if 'M' == dataset.filters.gender else '' }}>M</option>
+      </select>
+    </label>
+
+    <label>PP<br>
+      <select name="pp">
+        <option value="" {{ 'selected' if '' == dataset.filters.pp else '' }}>All</option>
+        <option value="1" {{ 'selected' if '1' == dataset.filters.pp else '' }}>Yes</option>
+        <option value="0" {{ 'selected' if '0' == dataset.filters.pp else '' }}>No</option>
+      </select>
+    </label>
+
+    <label>LAPS<br>
+      <select name="laps">
+        <option value="" {{ 'selected' if '' == dataset.filters.laps else '' }}>All</option>
+        <option value="1" {{ 'selected' if '1' == dataset.filters.laps else '' }}>Yes</option>
+        <option value="0" {{ 'selected' if '0' == dataset.filters.laps else '' }}>No</option>
+      </select>
+    </label>
+
+    <label>Service child<br>
+      <select name="svc">
+        <option value="" {{ 'selected' if '' == dataset.filters.svc else '' }}>All</option>
+        <option value="1" {{ 'selected' if '1' == dataset.filters.svc else '' }}>Yes</option>
+        <option value="0" {{ 'selected' if '0' == dataset.filters.svc else '' }}>No</option>
+      </select>
+    </label>
+
+    <label>Min %<br>
+      <input type="number" min="0" max="100" step="1" name="min_pct" value="{{ dataset.filters.min_pct }}">
+    </label>
+
+    <label>Max %<br>
+      <input type="number" min="0" max="100" step="1" name="max_pct" value="{{ dataset.filters.max_pct }}">
+    </label>
+
+    <label>Band<br>
+      <select name="band">
+        <option value="" {{ 'selected' if '' == dataset.filters.band else '' }}>All</option>
+        <option value="wts" {{ 'selected' if 'wts' == dataset.filters.band else '' }}>Working towards</option>
+        <option value="ot" {{ 'selected' if 'ot' == dataset.filters.band else '' }}>Working at</option>
+        <option value="gds" {{ 'selected' if 'gds' == dataset.filters.band else '' }}>Exceeding</option>
+      </select>
+    </label>
+
+    <button class="button" type="submit">Apply</button>
+    <a class="button" href="{{ url_for('reports', subject=dataset.subject, year=(dataset.year.id if dataset.year else None), **({'class': dataset.selected_class_id} if dataset.is_admin else {})) }}">Clear</a>
+  </form>
+</section>
+
+<section class="card">
+  <a class="button" href="{{ url_for('reports') }}?{{ query_string }}">Preview</a>
+  <a class="button" href="{{ url_for('reports_pdf') }}?{{ query_string }}">Download PDF</a>
+  <a class="button" href="{{ url_for('reports_xlsx') }}?{{ query_string }}">Download Excel</a>
+</section>
+
+<section>
+  <h2>Preview</h2>
+  <p><em>{{ dataset.subject_label }} · {{ dataset.year.label if dataset.year else '' }} · {{ dataset.selected_class.name if dataset.selected_class else 'All classes' }} · {{ dataset.filter_summary }}</em></p>
+
+  {% if dataset.rows %}
+    <div class="table-scroll">
+      <table class="table-sticky">
+        <thead>
+          <tr>
+            {% for h in dataset.headers %}
+              <th>{{ h }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in dataset.rows %}
+            <tr>
+              {% for h in dataset.headers %}
+                <td>{{ row[h] }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No pupils match these filters yet. Try broadening your filters.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

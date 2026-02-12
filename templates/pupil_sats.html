@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% block title %}{{ pupil.name }} — SATs{% endblock %}
+{% block content %}
+<style>
+  .sats-col { width: 38px; min-width: 38px; max-width: 38px; text-align: center; }
+</style>
+<p><a href="{{ url_for('pupil_page', pupil_id=pupil.id, year=selected_year_id, subject='maths') }}">← Back to pupil</a></p>
+<h1>{{ pupil.name }} — SATs</h1>
+
+<form class="inline" method="get" action="{{ url_for('pupil_sats_page', pupil_id=pupil.id) }}">
+  <label>Academic year<br>
+    <select name="year">
+      {% for y in years %}
+        <option value="{{ y.id }}" {{ 'selected' if y.id == selected_year_id else '' }}>{{ y.label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button class="button" type="submit">Change</button>
+</form>
+
+{% set maths = headers_by_group.get('Maths', []) %}
+{% set reading = headers_by_group.get('Reading', []) %}
+{% set spag = headers_by_group.get('SPaG', []) %}
+{% set all_headers = maths + reading + spag %}
+
+<table>
+  <thead>
+    <tr>
+      <th colspan="{{ maths|length }}">Maths</th>
+      <th colspan="{{ reading|length }}">Reading</th>
+      <th colspan="{{ spag|length }}">SPaG</th>
+    </tr>
+    <tr>
+      {% for h in all_headers %}
+        <th class="sats-col">{{ h.header if h.header else h.key }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      {% for h in all_headers %}
+        <td class="sats-col">{{ '' if score_map.get(h.key) is none else score_map.get(h.key) }}</td>
+      {% endfor %}
+    </tr>
+  </tbody>
+</table>
+{% endblock %}

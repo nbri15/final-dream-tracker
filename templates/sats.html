@@ -1,0 +1,133 @@
+{% extends "layout.html" %}
+{% block title %}SATs Tracker — Dream Tracker{% endblock %}
+{% block content %}
+
+<style>
+  .sats-input { width: 82px; }
+  .header-input { width: 120px; }
+</style>
+
+<p><a href="{{ url_for('dashboard', subject='maths', year=selected_year_id, **{'class': selected_class_id}) }}">← Back to dashboard</a></p>
+<h1>{{ klass.name }} — SATs tracker</h1>
+<p><small class="muted">Edit headers to match the test date/name. Scores autosave.</small></p>
+
+<section class="card">
+  <form method="get" class="inline" action="{{ url_for('sats_page') }}">
+    <input type="hidden" name="class" value="{{ selected_class_id }}">
+    <div>
+      <span>Subject</span><br>
+      <nav class="subject-tabs" aria-label="Subject tabs">
+        {% for s in subjects %}
+          <a class="subject-tab {{ 'active' if s == subject else '' }}" href="{{ url_for('sats_page', class=selected_class_id, year=selected_year_id, subject=s) }}">{{ 'Maths' if s=='maths' else ('Reading' if s=='reading' else 'SPaG') }}</a>
+        {% endfor %}
+      </nav>
+    </div>
+    <label>Academic year<br>
+      <select name="year" onchange="this.form.submit()">
+        {% for y in years %}
+          <option value="{{ y.id }}" {{ 'selected' if y.id == selected_year_id else '' }}>{{ y.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+</section>
+
+<section>
+  <div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>Pupil</th>
+        {% for c in columns %}
+          <th>
+            <input
+              class="header-input"
+              value="{{ c.header or '' }}"
+              data-role="header"
+              data-class-id="{{ klass.id }}"
+              data-year-id="{{ selected_year_id }}"
+              data-subject="{{ subject }}"
+              data-key="{{ c.key }}"
+              placeholder="">
+          </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pupils %}
+        <tr>
+          <td><a href="{{ url_for('pupil_page', pupil_id=p.id, year=selected_year_id, subject='maths') }}">{{ p.name }}</a></td>
+          {% for c in columns %}
+            <td>
+              <input
+                class="sats-input"
+                value="{{ '' if score_map.get((p.id, c.key)) is none else score_map.get((p.id, c.key)) }}"
+                data-role="score"
+                data-pupil-id="{{ p.id }}"
+                data-year-id="{{ selected_year_id }}"
+                data-subject="{{ subject }}"
+                data-key="{{ c.key }}"
+                inputmode="decimal">
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<script>
+async function saveJson(url, payload){
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error('save failed');
+  return res.json();
+}
+
+document.querySelectorAll('input[data-role="header"]').forEach((el) => {
+  el.addEventListener('blur', async () => {
+    const old = el.dataset.prev || '';
+    const current = el.value;
+    if (old === current) return;
+    try {
+      await saveJson('{{ url_for("api_sats_rename_column") }}', {
+        class_id: el.dataset.classId,
+        year_id: el.dataset.yearId,
+        subject: el.dataset.subject,
+        key: el.dataset.key,
+        header: current,
+      });
+      el.dataset.prev = current;
+      el.style.borderColor = '#10b981';
+    } catch {
+      el.style.borderColor = '#dc2626';
+    }
+    setTimeout(() => { el.style.borderColor = ''; }, 700);
+  });
+});
+
+document.querySelectorAll('input[data-role="score"]').forEach((el) => {
+  const handler = async () => {
+    try {
+      await saveJson('{{ url_for("api_sats_quick_save") }}', {
+        pupil_id: el.dataset.pupilId,
+        year_id: el.dataset.yearId,
+        subject: el.dataset.subject,
+        key: el.dataset.key,
+        value: el.value,
+      });
+      el.style.borderColor = '#10b981';
+    } catch {
+      el.style.borderColor = '#dc2626';
+    }
+    setTimeout(() => { el.style.borderColor = ''; }, 700);
+  };
+  el.addEventListener('blur', handler);
+  el.addEventListener('change', handler);
+});
+</script>
+{% endblock %}

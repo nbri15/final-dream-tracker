@@ -1,0 +1,44 @@
+{% if not is_pdf %}{% extends "layout.html" %}{% endif %}
+{% block title %}Parent Summary — {{ pupil.name }}{% endblock %}
+{% block content %}
+<style>
+  .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.8rem}
+  .summary-card{border:1px solid #e5e7eb;border-radius:8px;padding:0.7rem}
+</style>
+<h1>Parent Summary</h1>
+<p><strong>{{ pupil.name }}</strong> · {{ pupil.klass.name if pupil.klass else '' }} · {{ year.label }} {{ term }}</p>
+
+{% if not is_pdf %}
+<section class="card">
+  <form method="post">
+    <label>Strengths<br><textarea name="strengths_text" rows="4" style="width:100%">{{ note.strengths_text if note else '' }}</textarea></label>
+    <label>Next steps<br><textarea name="next_steps_text" rows="4" style="width:100%">{{ note.next_steps_text if note else '' }}</textarea></label>
+    <p><button class="button" type="submit">Save notes</button>
+      <a class="button" href="{{ url_for('report_parent_summary', pupil_id=pupil.id, year=year.id, term=term, format='pdf') }}">Download Parent PDF</a>
+    </p>
+  </form>
+</section>
+{% endif %}
+
+<section class="summary-grid">
+  {% for key, label in [('maths','Maths'),('reading','Reading'),('spag','SPaG')] %}
+    {% set r = latest.get(key) %}
+    <div class="summary-card">
+      <h3>{{ label }}</h3>
+      <p>Attainment: {{ r.combined_pct if r and r.combined_pct is not none else '—' }}{% if r and r.combined_pct is not none %}%{% endif %}</p>
+      <p>Band: {{ r.summary if r and r.summary else '—' }}</p>
+      <p>On track: {{ 'Yes' if r and r.summary and 'towards' not in r.summary|lower else ('No' if r else '—') }}</p>
+    </div>
+  {% endfor %}
+  <div class="summary-card">
+    <h3>Writing</h3>
+    <p>Judgement: {{ writing.band.replace('_', ' ').title() if writing else '—' }}</p>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Teacher comments</h2>
+  <p><strong>Strengths:</strong> {{ note.strengths_text if note and note.strengths_text else '—' }}</p>
+  <p><strong>Next steps:</strong> {{ note.next_steps_text if note and note.next_steps_text else '—' }}</p>
+</section>
+{% endblock %}

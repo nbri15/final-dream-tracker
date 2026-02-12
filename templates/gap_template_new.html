@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+{% block title %}New GAP template{% endblock %}
+{% block content %}
+<h1>New GAP template</h1>
+<form method="post" class="inline">
+  <label>Year<select name="academic_year_id">{% for y in years %}<option value="{{ y.id }}">{{ y.label }}</option>{% endfor %}</select></label>
+  <label>Year group<input type="number" min="1" max="6" name="year_group" value="6"></label>
+  <label>Term<select name="term">{% for t in terms %}<option>{{ t }}</option>{% endfor %}</select></label>
+  <label>Subject<select name="subject" id="subject" onchange="syncPapers()">{% for s in subjects %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></label>
+  <label>Paper<select name="paper" id="paper"></select></label>
+  <label>Title<input name="title"></label>
+  <label>Copy from<select name="copy_from_id"><option value="">None</option>{% for t in template_choices %}<option value="{{ t.id }}">{{ t.academic_year.label }} Y{{ t.year_group }} {{ t.term }} {{ t.subject }} {{ t.paper }} v{{ t.version }}</option>{% endfor %}</select></label>
+  <button class="button" type="submit">Create</button>
+</form>
+<script>
+const paperMap={{ papers|tojson }};function syncPapers(){const s=document.getElementById('subject').value;document.getElementById('paper').innerHTML=(paperMap[s]||[]).map(p=>`<option>${p}</option>`).join('');}syncPapers();
+</script>
+{% endblock %}

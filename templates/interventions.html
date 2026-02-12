@@ -1,0 +1,177 @@
+{% extends "layout.html" %}
+{% block title %}Interventions{% endblock %}
+{% block content %}
+<h1>Interventions</h1>
+
+<section class="card">
+  <form method="get" class="inline" action="{{ url_for('interventions') }}">
+    <label>Academic year<br>
+      <select name="year">
+        {% for y in years %}
+          <option value="{{ y.id }}" {{ 'selected' if year and year.id == y.id else '' }}>{{ y.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    {% if is_admin %}
+      <label>Class<br>
+        <select name="class">
+          <option value="0" {{ 'selected' if not sel_class else '' }}>All classes</option>
+          {% for c in classes %}
+            <option value="{{ c.id }}" {{ 'selected' if sel_class == c.id else '' }}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    {% endif %}
+
+    <label>Subject<br>
+      <select name="subject">
+        <option value="" {{ 'selected' if not sel_subject else '' }}>All</option>
+        <option value="maths" {{ 'selected' if sel_subject == 'maths' else '' }}>Maths</option>
+        <option value="reading" {{ 'selected' if sel_subject == 'reading' else '' }}>Reading</option>
+        <option value="spag" {{ 'selected' if sel_subject == 'spag' else '' }}>SPaG</option>
+        <option value="writing" {{ 'selected' if sel_subject == 'writing' else '' }}>Writing</option>
+      </select>
+    </label>
+
+    <label>Term<br>
+      <select name="term">
+        <option value="" {{ 'selected' if not sel_term else '' }}>All</option>
+        {% for t in ['Autumn','Spring','Summer'] %}
+          <option value="{{ t }}" {{ 'selected' if sel_term == t else '' }}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>Status<br>
+      <select name="status">
+        <option value="" {{ 'selected' if not sel_status else '' }}>All</option>
+        <option value="proposed" {{ 'selected' if sel_status == 'proposed' else '' }}>Proposed</option>
+        <option value="active" {{ 'selected' if sel_status == 'active' else '' }}>Active</option>
+        <option value="closed" {{ 'selected' if sel_status == 'closed' else '' }}>Closed</option>
+        <option value="awaiting-post" {{ 'selected' if sel_status == 'awaiting-post' else '' }}>Awaiting post score</option>
+      </select>
+    </label>
+
+    <label>PP<br>
+      <select name="pp">
+        <option value="" {{ 'selected' if not sel_pp else '' }}>All</option>
+        <option value="1" {{ 'selected' if sel_pp == '1' else '' }}>Yes</option>
+        <option value="0" {{ 'selected' if sel_pp == '0' else '' }}>No</option>
+      </select>
+    </label>
+
+    <label>Year group<br><input type="number" name="year_group" value="{{ sel_year_group or '' }}" min="1" max="13"></label>
+    <label>Intervention group name<br><input type="text" name="group_name" value="{{ sel_group_name or '' }}"></label>
+    <label>Lead staff<br>
+      <select name="lead">
+        <option value="" {{ 'selected' if not sel_lead else '' }}>All</option>
+        {% for lead in leads %}
+          <option value="{{ lead.id }}" {{ 'selected' if sel_lead|string == lead.id|string else '' }}>{{ lead.username }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <button class="button" type="submit">Apply</button>
+    <a class="button" href="{{ url_for('interventions') }}">Clear</a>
+  </form>
+</section>
+
+<section class="card">
+  <h3>Overview</h3>
+  <p>Average impact: <strong>{{ interventions_summary.avg_impact if interventions_summary.avg_impact is not none else '—' }}</strong> | Completed: <strong>{{ interventions_summary.completed }}</strong> | Awaiting post score: <strong>{{ interventions_summary.awaiting_post }}</strong></p>
+</section>
+
+<section class="card">
+  <form method="post" action="{{ url_for('interventions', **filter_params) }}">
+    <input type="hidden" name="action" value="save">
+    <table>
+      <thead>
+        <tr>
+          {% if is_admin %}<th>Class</th>{% endif %}
+          <th>Pupil</th>
+          <th>Group</th>
+          <th>Lead</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Pre</th>
+          <th>Post</th>
+          <th>Impact</th>
+          <th>Notes</th>
+          <th>Status</th>
+          {% if show_review_due_date %}<th>Review due date</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+          <tr>
+            {% if is_admin %}<td>{{ it.klass.name }}</td>{% endif %}
+            <td>{{ it.pupil.name }}</td>
+            <td><input type="text" name="focus_{{ it.id }}" value="{{ it.focus_areas or '' }}"></td>
+            <td>{{ it.selector.username if it.selector else '—' }}</td>
+            <td>{{ it.created_at.strftime('%Y-%m-%d') if it.created_at else '' }}</td>
+            <td>{{ it.updated_at.strftime('%Y-%m-%d') if it.status == 'closed' and it.updated_at else '—' }}</td>
+            <td><input type="text" name="pre_{{ it.id }}" value="{{ it.pre_result or '' }}"></td>
+            <td><input type="text" name="post_{{ it.id }}" value="{{ it.post_result or '' }}"></td>
+            <td>{% if it.impact is not none %}<strong>{{ it.impact }}</strong>{% else %}—{% endif %}</td>
+            <td><textarea name="support_{{ it.id }}" rows="2">{{ it.support_plan or '' }}</textarea><br><small>{{ it.teacher_note or '' }}</small><input type="hidden" name="teacher_note_{{ it.id }}" value="{{ it.teacher_note or '' }}"></td>
+            <td>
+              {% if it.status == 'closed' and it.post_score_value is none %}<span class="band band-wts">Awaiting post score</span><br>{% endif %}
+              <select name="status_{{ it.id }}">
+                <option value="proposed" {{ 'selected' if it.status=='proposed' else '' }}>proposed</option>
+                <option value="active" {{ 'selected' if it.status=='active' else '' }}>active</option>
+                <option value="closed" {{ 'selected' if it.status=='closed' else '' }}>closed</option>
+              </select>
+            </td>
+            {% if show_review_due_date %}
+              <td><input type="date" name="review_due_{{ it.id }}" value="{{ it.review_due_date.isoformat() if it.review_due_date else '' }}"></td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <p><button class="button" type="submit">Save all</button></p>
+  </form>
+</section>
+
+<section class="card">
+  <h3>+ Add pupil to intervention</h3>
+  <form method="post" class="inline" action="{{ url_for('interventions', **filter_params) }}">
+    <input type="hidden" name="action" value="add">
+
+    <label>Pupil<br>
+      <select name="pupil_id" {{ 'disabled' if is_admin and not sel_class else '' }} required>
+        <option value="">Select pupil</option>
+        {% for p in add_pupils %}
+          <option value="{{ p.id }}">{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>Subject<br>
+      <select name="add_subject">
+        <option value="maths">Maths</option>
+        <option value="reading">Reading</option>
+        <option value="spag">SPaG</option>
+        <option value="writing">Writing</option>
+      </select>
+    </label>
+
+    <label>Term<br>
+      <select name="add_term">
+        <option value="">(optional)</option>
+        {% for t in ['Autumn','Spring','Summer'] %}
+          <option value="{{ t }}">{{ t }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>Intervention focus<br><input type="text" name="add_focus"></label>
+    <label>What is the intervention<br><textarea name="add_support" rows="2"></textarea></label>
+    <label>Pre result<br><input type="text" name="add_pre"></label>
+
+    <button class="button" type="submit" {{ 'disabled' if is_admin and not sel_class else '' }}>Create</button>
+  </form>
+</section>
+{% endblock %}
