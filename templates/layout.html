@@ -348,6 +348,7 @@
           <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_promote' else '' }}" href="{{ url_for('admin_promote') }}">Promote</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_users' else '' }}" href="{{ url_for('admin_users') }}">Users</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_classes' else '' }}" href="{{ url_for('admin_classes') }}">Classes</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_pupils_overview' else '' }}" href="{{ url_for('admin_pupils_overview') }}">Pupil Overview</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_archive' else '' }}" href="{{ url_for('admin_archive') }}">Archive</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'import_results' else '' }}" href="{{ url_for('import_results') }}">Import data</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'assessments' else '' }}" href="{{ url_for('assessments') }}">GAP</a>
