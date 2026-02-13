@@ -2032,91 +2032,43 @@ def create_app():
                         r._score_a, r._score_b = get_result_scores(r, subject)
                         results_by_pupil[r.pupil_id][r.term] = r
 
-        # KPI calculators (year-filtered) incl. On-Track+
-        def kpis_by_results(filtered_pupil_ids):
-            stats = {}
+        # Canonical base dataset (exactly what the table renders): one row per pupil per term.
+        base_rows_by_term = {t: [] for t in TERMS}
+        for p in pupils:
             for t in TERMS:
-                rq = (Result.query
-                      .filter(Result.pupil_id.in_(filtered_pupil_ids),
-                              Result.academic_year_id == selected_year.id,
-                              Result.term == t,
-                              Result.subject == subject))
-                count = rq.count()
-                if count == 0:
-                    stats[t] = {
-                        "count": 0, "wts": 0, "ot": 0, "gds": 0,
-                        "pct_wts": 0.0, "pct_ot": 0.0, "pct_gds": 0.0,
-                        "ot_plus": 0, "pct_ot_plus": 0.0,
-                    }
-                    continue
-                cats = [(x.summary or "").lower() for x in rq.all()]
-                wts = sum("towards" in c for c in cats)
-                ot = sum("working at are" in c for c in cats)
-                gds = sum("exceed" in c for c in cats)
-                ot_plus = ot + gds
-                stats[t] = {
-                    "count": count,
-                    "wts": wts, "ot": ot, "gds": gds,
-                    "pct_wts": round(wts / count * 100.0, 1),
-                    "pct_ot": round(ot / count * 100.0, 1),
-                    "pct_gds": round(gds / count * 100.0, 1),
-                    "ot_plus": ot_plus,
-                    "pct_ot_plus": round(ot_plus / count * 100.0, 1),
-                }
-            return stats
+                row = writing_by_pupil.get(p.id, {}).get(t) if subject == "writing" else results_by_pupil.get(p.id, {}).get(t)
+                if row:
+                    base_rows_by_term[t].append(row)
 
-        def kpis_by_pupil(filtered_pupils, latest_by_pupil_term):
-            total_pupils = len(filtered_pupils)
+        # KPI calculators derived from table rows only.
+        def kpis_from_base_rows(filtered_pupils, latest_by_pupil_term):
             stats = {}
             for t in TERMS:
                 wts = ot = gds = 0
+                incomplete = 0
                 for p in filtered_pupils:
                     r = latest_by_pupil_term.get(p.id, {}).get(t)
-                    if not r or not r.summary:
+                    if not r:
                         continue
-                    s = (r.summary or "").lower()
-                    if "towards" in s:
-                        wts += 1
-                    elif "working at are" in s:
-                        ot += 1
-                    elif "exceed" in s:
-                        gds += 1
 
-                if total_pupils == 0:
+                    raw_band = getattr(r, "band", None) if subject == "writing" else getattr(r, "summary", None)
+                    band = summarize_band(raw_band, "writing" if subject == "writing" else subject)
+                    if band == "wts":
+                        wts += 1
+                    elif band == "ot":
+                        ot += 1
+                    elif band == "gds":
+                        gds += 1
+                    else:
+                        incomplete += 1
+
+                count = wts + ot + gds
+                if count == 0:
                     stats[t] = {"count": 0, "wts": 0, "ot": 0, "gds": 0,
                                 "pct_wts": 0.0, "pct_ot": 0.0, "pct_gds": 0.0,
-                                "ot_plus": 0, "pct_ot_plus": 0.0}
+                                "ot_plus": 0, "pct_ot_plus": 0.0,
+                                "incomplete": incomplete}
                 else:
-                    count_with_result = sum(
-                        1 for p in filtered_pupils if latest_by_pupil_term.get(p.id, {}).get(t)
-                    )
-                    ot_plus = ot + gds
-                    stats[t] = {
-                        "count": count_with_result,
-                        "wts": wts, "ot": ot, "gds": gds,
-                        "pct_wts": round(wts / total_pupils * 100.0, 1),
-                        "pct_ot": round(ot / total_pupils * 100.0, 1),
-                        "pct_gds": round(gds / total_pupils * 100.0, 1),
-                        "ot_plus": ot_plus,
-                        "pct_ot_plus": round(ot_plus / total_pupils * 100.0, 1),
-                    }
-            return stats
-
-        if subject == "writing":
-            def writing_kpis():
-                stats = {}
-                for t in TERMS:
-                    term_rows = [writing_by_pupil.get(pid, {}).get(t) for pid in pupil_ids]
-                    term_rows = [r for r in term_rows if r]
-                    count = len(term_rows)
-                    if count == 0:
-                        stats[t] = {"count": 0, "wts": 0, "ot": 0, "gds": 0,
-                                    "pct_wts": 0.0, "pct_ot": 0.0, "pct_gds": 0.0,
-                                    "ot_plus": 0, "pct_ot_plus": 0.0}
-                        continue
-                    wts = sum(r.band == "working_towards" for r in term_rows)
-                    ot = sum(r.band == "working_at" for r in term_rows)
-                    gds = sum(r.band == "exceeding" for r in term_rows)
                     ot_plus = ot + gds
                     stats[t] = {
                         "count": count,
@@ -2126,11 +2078,28 @@ def create_app():
                         "pct_gds": round(gds / count * 100.0, 1),
                         "ot_plus": ot_plus,
                         "pct_ot_plus": round(ot_plus / count * 100.0, 1),
+                        "incomplete": incomplete,
                     }
-                return stats
-            kpi = writing_kpis()
-        else:
-            kpi = kpis_by_results(pupil_ids) if request.args.get("pp") != "1" else kpis_by_pupil(pupils, results_by_pupil)
+
+                if stats[t]["count"] == 0 and len(base_rows_by_term[t]) > 0:
+                    app.logger.warning(
+                        "Dashboard KPI count is zero despite visible rows",
+                        extra={
+                            "subject": subject,
+                            "year_id": selected_year.id if selected_year else None,
+                            "class": selected_class_id,
+                            "gender": gender,
+                            "pp": pp,
+                            "laps": laps,
+                            "svc": svc,
+                            "term": t,
+                            "visible_result_rows": len(base_rows_by_term[t]),
+                        },
+                    )
+            return stats
+
+        kpi_source = writing_by_pupil if subject == "writing" else results_by_pupil
+        kpi = kpis_from_base_rows(pupils, kpi_source)
 
         action_needed = build_action_needed(current_user, selected_year.id, term)
 
@@ -2158,10 +2127,24 @@ def create_app():
 
         overview_chart = None
         if not is_admin and mode == "home" and klass and selected_year:
-            base_q = Pupil.query.filter(Pupil.class_id == klass.id)
-            base_q = apply_group_filters(base_q, gender=gender, pp=pp, laps=laps, svc=svc)
-            overview_pupil_ids = [p.id for p in base_q.all()]
-            overview_chart = subject_distribution_for_pupil_ids(overview_pupil_ids, selected_year.id, term, subject)
+            tvals = kpi.get(term, {})
+            total_count = int(tvals.get("count", 0) or 0)
+            on_track_count = int(tvals.get("ot_plus", 0) or 0)
+            wts_count = int(tvals.get("wts", 0) or 0)
+            ot_count = int(tvals.get("ot", 0) or 0)
+            gds_count = int(tvals.get("gds", 0) or 0)
+            overview_chart = {
+                "wts_count": wts_count,
+                "ot_count": ot_count,
+                "gds_count": gds_count,
+                "total_count": total_count,
+                "on_track_count": on_track_count,
+                "wts": round((wts_count / total_count) * 100.0, 1) if total_count else 0.0,
+                "ot": round((ot_count / total_count) * 100.0, 1) if total_count else 0.0,
+                "gds": round((gds_count / total_count) * 100.0, 1) if total_count else 0.0,
+                "on_track": round((on_track_count / total_count) * 100.0, 1) if total_count else 0.0,
+                "incomplete_count": int(tvals.get("incomplete", 0) or 0),
+            }
             overview_chart["subject"] = subject
             overview_chart["term"] = term
 
