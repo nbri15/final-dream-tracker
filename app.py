@@ -3852,6 +3852,7 @@ def create_app():
         term = (request.args.get("term") or "").strip()
         subject = (request.args.get("subject") or "").strip().lower()
         status = (request.args.get("status") or "").strip().lower()
+        group_name = (request.form.get("group") or request.args.get("group") or "").strip()
         pp = request.args.get("pp", "")
         include_pupil_ids = parse_id_csv(request.args.get("pupil_ids"))
 
@@ -3994,7 +3995,7 @@ def create_app():
             if lead:
                 params["lead"] = lead
             if group_name:
-                params["group_name"] = group_name
+                params["group"] = group_name
             if year_group:
                 params["year_group"] = year_group
             return redirect(url_for("interventions", **params))
@@ -4015,7 +4016,7 @@ def create_app():
         if lead:
             filter_params["lead"] = lead
         if group_name:
-            filter_params["group_name"] = group_name
+            filter_params["group"] = group_name
         if year_group:
             filter_params["year_group"] = year_group
 
