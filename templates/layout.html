@@ -351,7 +351,6 @@
           <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_pupils_overview' else '' }}" href="{{ url_for('admin_pupils_overview') }}">Pupil Overview</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_archive' else '' }}" href="{{ url_for('admin_archive') }}">Archive</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'import_results' else '' }}" href="{{ url_for('import_results') }}">Import data</a>
-          <a class="sidebar-link {{ 'active' if request.endpoint == 'assessments' else '' }}" href="{{ url_for('assessments') }}">GAP</a>
         {% endif %}
       </nav>
     </aside>
