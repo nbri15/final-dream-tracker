@@ -75,6 +75,7 @@ class Pupil(db.Model):
 
     results = db.relationship("Result", backref="pupil", cascade="all, delete-orphan")
     writing_results = db.relationship("WritingResult", backref="pupil", cascade="all, delete-orphan")
+    profile = db.relationship("PupilProfile", back_populates="pupil", uselist=False, cascade="all, delete-orphan")
     sats_scores = db.relationship("SatsScore", backref="pupil", cascade="all, delete-orphan")
     class_history = db.relationship("PupilClassHistory", backref="pupil", cascade="all, delete-orphan")
 
@@ -197,6 +198,29 @@ class WritingResult(db.Model):
     __table_args__ = (
         db.UniqueConstraint('pupil_id', 'academic_year_id', 'term', name='uq_writing_pupil_year_term'),
     )
+
+
+class PupilProfile(db.Model):
+    __tablename__ = "pupil_profiles"
+
+    id = db.Column(db.Integer, primary_key=True)
+    pupil_id = db.Column(db.Integer, db.ForeignKey("pupils.id"), nullable=False, unique=True, index=True)
+    year_group = db.Column(db.Integer, nullable=True)
+    lac_pla = db.Column(db.Boolean, nullable=False, default=False)
+    send = db.Column(db.Boolean, nullable=False, default=False)
+    ehcp = db.Column(db.Boolean, nullable=False, default=False)
+    vulnerable = db.Column(db.Boolean, nullable=False, default=False)
+    attendance_spring1 = db.Column(db.Float, nullable=True)
+    eyfs_gld = db.Column(db.Boolean, nullable=True)
+    y1_phonics = db.Column(db.Integer, nullable=True)
+    y2_phonics_retake = db.Column(db.Integer, nullable=True)
+    y2_reading = db.Column(db.String(30), nullable=True)
+    y2_writing = db.Column(db.String(30), nullable=True)
+    y2_maths = db.Column(db.String(30), nullable=True)
+    enrichment = db.Column(db.Text, nullable=True)
+    interventions_note = db.Column(db.Text, nullable=True)
+
+    pupil = db.relationship("Pupil", back_populates="profile")
 
 
 class TermConfig(db.Model):

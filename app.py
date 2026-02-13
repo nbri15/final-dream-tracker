@@ -4,14 +4,14 @@ from flask_migrate import Migrate
 from flask_login import (
     LoginManager, login_user, login_required, current_user, logout_user
 )
-from sqlalchemy import case, func, inspect, text
+from sqlalchemy import case, func, inspect, text, and_, or_
 from sqlalchemy.exc import NoSuchTableError
 from config import Config
 from models import (
     db, SchoolClass, Teacher, TeacherClass, Pupil, Result, WritingResult, TermConfig, AcademicYear,
     Assessment, AssessmentQuestion, PupilQuestionScore, Intervention,
     SatsHeader, SatsScore, PupilClassHistory, PaperTemplate, PaperTemplateQuestion,
-    PupilReportNote
+    PupilReportNote, PupilProfile
 )
 from forms import (
     LoginForm, PupilForm, ResultForm, TermSettingsForm,
@@ -914,6 +914,78 @@ def create_app():
         }
         return labels.get(band, "")
 
+    def parse_bool_filter(value):
+        if value == "1":
+            return True
+        if value == "0":
+            return False
+        return None
+
+    def current_outcomes_for_pupils(pupil_ids, year_id):
+        if not pupil_ids:
+            return {}
+        term_rank = case(
+            (Result.term == "Autumn", 1),
+            (Result.term == "Spring", 2),
+            (Result.term == "Summer", 3),
+            else_=0,
+        )
+
+        outcomes = {pid: {"reading": None, "maths": None, "writing": None} for pid in pupil_ids}
+
+        non_writing = (
+            Result.query
+            .filter(Result.pupil_id.in_(pupil_ids), Result.academic_year_id == year_id, Result.subject.in_(["reading", "maths"]))
+            .order_by(Result.pupil_id.asc(), Result.subject.asc(), term_rank.desc(), Result.updated_at.desc(), Result.created_at.desc())
+            .all()
+        )
+        seen = set()
+        for row in non_writing:
+            key = (row.pupil_id, row.subject)
+            if key in seen:
+                continue
+            seen.add(key)
+            outcomes[row.pupil_id][row.subject] = row.summary
+
+        writing_rank = case(
+            (WritingResult.term == "Autumn", 1),
+            (WritingResult.term == "Spring", 2),
+            (WritingResult.term == "Summer", 3),
+            else_=0,
+        )
+        writing_rows = (
+            WritingResult.query
+            .filter(WritingResult.pupil_id.in_(pupil_ids), WritingResult.academic_year_id == year_id)
+            .order_by(WritingResult.pupil_id.asc(), writing_rank.desc(), WritingResult.created_at.desc())
+            .all()
+        )
+        writing_seen = set()
+        for row in writing_rows:
+            if row.pupil_id in writing_seen:
+                continue
+            writing_seen.add(row.pupil_id)
+            outcomes[row.pupil_id]["writing"] = writing_band_label(row.band)
+        return outcomes
+
+    def band_class_from_text(value):
+        text_value = (value or "").strip().lower()
+        if not text_value:
+            return ""
+        if "toward" in text_value or "wts" in text_value:
+            return "band-wts"
+        if "exceed" in text_value or "greater" in text_value or "gds" in text_value:
+            return "band-gds"
+        return "band-ot"
+
+    def get_or_create_pupil_profile(pupil_id: int):
+        profile = PupilProfile.query.filter_by(pupil_id=pupil_id).first()
+        if profile:
+            return profile
+        profile = PupilProfile(pupil_id=pupil_id)
+        db.session.add(profile)
+        db.session.flush()
+        return profile
+
     def apply_group_filters(q, gender="", pp="", laps="", svc=""):
         if gender in ("F", "M"):
             q = q.filter(Pupil.gender == gender)
@@ -1659,6 +1731,31 @@ def create_app():
 
     # ---- Routes
 
+    def ensure_pupil_profiles_table():
+        with db.engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS pupil_profiles (
+                    id INTEGER PRIMARY KEY,
+                    pupil_id INTEGER NOT NULL UNIQUE,
+                    year_group INTEGER,
+                    lac_pla BOOLEAN NOT NULL DEFAULT 0,
+                    send BOOLEAN NOT NULL DEFAULT 0,
+                    ehcp BOOLEAN NOT NULL DEFAULT 0,
+                    vulnerable BOOLEAN NOT NULL DEFAULT 0,
+                    attendance_spring1 FLOAT,
+                    eyfs_gld BOOLEAN,
+                    y1_phonics INTEGER,
+                    y2_phonics_retake INTEGER,
+                    y2_reading VARCHAR(30),
+                    y2_writing VARCHAR(30),
+                    y2_maths VARCHAR(30),
+                    enrichment TEXT,
+                    interventions_note TEXT,
+                    FOREIGN KEY(pupil_id) REFERENCES pupils (id)
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_pupil_profiles_pupil_id ON pupil_profiles (pupil_id)"))
+
     def ensure_pupil_report_notes_table():
         with db.engine.begin() as conn:
             conn.execute(text("""
@@ -1691,6 +1788,7 @@ def create_app():
         ensure_writing_results_table()
         ensure_pupil_class_history_table()
         ensure_paper_template_tables_and_columns()
+        ensure_pupil_profiles_table()
         ensure_pupil_report_notes_table()
         ensure_default_year()
         get_or_create_archive_class()
@@ -4260,6 +4358,168 @@ def create_app():
             sel_svc=svc,
             class_cards=class_cards,
         )
+
+    @app.route("/admin/pupils_overview")
+    @login_required
+    def admin_pupils_overview():
+        if not is_admin_user():
+            flash("Admins only.", "error")
+            return redirect(url_for("dashboard", subject="maths"))
+
+        years = AcademicYear.query.order_by(AcademicYear.label.asc()).all()
+        current_year = get_current_year()
+        try:
+            year_id = int(request.args.get("year") or (current_year.id if current_year else 0))
+        except (TypeError, ValueError):
+            year_id = current_year.id if current_year else 0
+
+        year_group_filter = (request.args.get("year_group") or "").strip()
+        class_filter = (request.args.get("class") or "").strip()
+        pp_filter = (request.args.get("pp") or "").strip()
+        lac_filter = (request.args.get("lac_pla") or "").strip()
+        service_filter = (request.args.get("service") or "").strip()
+        send_filter = (request.args.get("send") or "").strip()
+        ehcp_filter = (request.args.get("ehcp") or "").strip()
+        vulnerable_filter = (request.args.get("vulnerable") or "").strip()
+        attendance_band = (request.args.get("attendance_band") or "").strip()
+        search = (request.args.get("search") or "").strip()
+
+        classes = active_classes_query().order_by(SchoolClass.name.asc()).all()
+        query = (
+            db.session.query(Pupil)
+            .join(SchoolClass, Pupil.class_id == SchoolClass.id)
+            .outerjoin(PupilProfile, PupilProfile.pupil_id == Pupil.id)
+            .filter(SchoolClass.is_archived.is_(False), SchoolClass.is_archive.is_(False))
+        )
+
+        if class_filter and class_filter != "all":
+            try:
+                class_id = int(class_filter)
+                query = query.filter(Pupil.class_id == class_id)
+            except ValueError:
+                pass
+
+        if year_group_filter and year_group_filter != "all":
+            if year_group_filter.lower() == "n":
+                query = query.filter(or_(PupilProfile.year_group == 0, SchoolClass.year_group == 0))
+            elif year_group_filter.lower() == "r":
+                query = query.filter(or_(PupilProfile.year_group == -1, SchoolClass.year_group == -1))
+            else:
+                try:
+                    yg = int(year_group_filter)
+                    query = query.filter(or_(PupilProfile.year_group == yg, and_(PupilProfile.year_group.is_(None), SchoolClass.year_group == yg)))
+                except ValueError:
+                    pass
+
+        for value, field in (
+            (pp_filter, Pupil.pupil_premium),
+            (service_filter, Pupil.service_child),
+            (lac_filter, PupilProfile.lac_pla),
+            (send_filter, PupilProfile.send),
+            (ehcp_filter, PupilProfile.ehcp),
+            (vulnerable_filter, PupilProfile.vulnerable),
+        ):
+            parsed = parse_bool_filter(value)
+            if parsed is not None:
+                query = query.filter(field.is_(parsed))
+
+        if search:
+            query = query.filter(Pupil.name.ilike(f"%{search}%"))
+
+        if attendance_band:
+            if attendance_band == "lt90":
+                query = query.filter(PupilProfile.attendance_spring1.isnot(None), PupilProfile.attendance_spring1 < 90)
+            elif attendance_band == "90to95":
+                query = query.filter(PupilProfile.attendance_spring1 >= 90, PupilProfile.attendance_spring1 <= 95)
+            elif attendance_band == "gt95":
+                query = query.filter(PupilProfile.attendance_spring1 > 95)
+
+        pupils = query.order_by(SchoolClass.name.asc(), Pupil.name.asc()).all()
+        pupil_ids = [p.id for p in pupils]
+        profiles = {pr.pupil_id: pr for pr in PupilProfile.query.filter(PupilProfile.pupil_id.in_(pupil_ids)).all()} if pupil_ids else {}
+        outcomes = current_outcomes_for_pupils(pupil_ids, year_id)
+
+        return render_template(
+            "admin_pupils_overview.html",
+            pupils=pupils,
+            profiles=profiles,
+            outcomes=outcomes,
+            years=years,
+            sel_year_id=year_id,
+            classes=classes,
+            band_class_from_text=band_class_from_text,
+            filters={
+                "year_group": year_group_filter,
+                "class": class_filter,
+                "pp": pp_filter,
+                "lac_pla": lac_filter,
+                "service": service_filter,
+                "send": send_filter,
+                "ehcp": ehcp_filter,
+                "vulnerable": vulnerable_filter,
+                "attendance_band": attendance_band,
+                "search": search,
+            },
+        )
+
+    @app.route('/api/pupil_profile/update', methods=['POST'])
+    @login_required
+    def api_pupil_profile_update():
+        if not is_admin_user():
+            abort(403)
+
+        data = request.get_json(silent=True) or {}
+        pupil_id = int(data.get('pupil_id', 0))
+        field = (data.get('field') or '').strip()
+        value = data.get('value')
+
+        pupil = Pupil.query.get_or_404(pupil_id)
+
+        profile_bool_fields = {'lac_pla', 'send', 'ehcp', 'vulnerable', 'eyfs_gld'}
+        profile_int_fields = {'year_group', 'y1_phonics', 'y2_phonics_retake'}
+        profile_float_fields = {'attendance_spring1'}
+        profile_text_fields = {'y2_reading', 'y2_writing', 'y2_maths', 'enrichment', 'interventions_note'}
+        pupil_bool_fields = {'pupil_premium', 'service_child', 'laps'}
+
+        if field in pupil_bool_fields:
+            setattr(pupil, field, bool(value))
+            pupil.updated_at = datetime.utcnow()
+            db.session.commit()
+            return jsonify({'ok': True})
+
+        allowed_profile_fields = profile_bool_fields | profile_int_fields | profile_float_fields | profile_text_fields
+        if field not in allowed_profile_fields:
+            abort(400)
+
+        profile = get_or_create_pupil_profile(pupil.id)
+
+        if field in profile_bool_fields:
+            if value in (None, '') and field == 'eyfs_gld':
+                casted = None
+            else:
+                casted = bool(value)
+        elif field in profile_int_fields:
+            if value in (None, ''):
+                casted = None
+            else:
+                try:
+                    casted = int(str(value).strip())
+                except ValueError:
+                    return jsonify({'ok': False, 'error': 'Value must be a whole number'}), 400
+        elif field in profile_float_fields:
+            if value in (None, ''):
+                casted = None
+            else:
+                try:
+                    casted = float(str(value).strip())
+                except ValueError:
+                    return jsonify({'ok': False, 'error': 'Value must be numeric'}), 400
+        else:
+            casted = str(value or '').strip() or None
+
+        setattr(profile, field, casted)
+        db.session.commit()
+        return jsonify({'ok': True})
 
     @app.route("/admin/pp_no_intervention")
     @login_required

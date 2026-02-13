@@ -1,0 +1,115 @@
+{% extends "layout.html" %}
+{% block title %}Admin — Pupil Overview{% endblock %}
+
+{% block content %}
+<h1>Admin — Pupil Overview</h1>
+
+<section class="card">
+  <form method="get" class="inline" action="{{ url_for('admin_pupils_overview') }}">
+    <label>Academic Year<br>
+      <select name="year">
+        {% for y in years %}
+        <option value="{{ y.id }}" {{ 'selected' if y.id == sel_year_id else '' }}>{{ y.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>Year Group<br><select name="year_group">
+      <option value="" {{ 'selected' if not filters.year_group else '' }}>All</option>
+      {% for y in range(1,7) %}<option value="{{ y }}" {{ 'selected' if filters.year_group == (y|string) else '' }}>Year {{ y }}</option>{% endfor %}
+    </select></label>
+
+    <label>Class<br><select name="class">
+      <option value="" {{ 'selected' if not filters['class'] else '' }}>All</option>
+      {% for c in classes %}<option value="{{ c.id }}" {{ 'selected' if filters['class'] == (c.id|string) else '' }}>{{ c.name }}</option>{% endfor %}
+    </select></label>
+
+    {% for key,label in [('pp','PP'),('lac_pla','LAC/PLA'),('service','Service'),('send','SEND'),('ehcp','EHCP'),('vulnerable','Vulnerable')] %}
+    <label>{{ label }}<br><select name="{{ key }}"><option value="" {{ 'selected' if not filters[key] else '' }}>Any</option><option value="1" {{ 'selected' if filters[key] == '1' else '' }}>Yes</option><option value="0" {{ 'selected' if filters[key] == '0' else '' }}>No</option></select></label>
+    {% endfor %}
+
+    <label>Attendance<br><select name="attendance_band">
+      <option value="" {{ 'selected' if not filters.attendance_band else '' }}>Any</option>
+      <option value="lt90" {{ 'selected' if filters.attendance_band == 'lt90' else '' }}>&lt; 90%</option>
+      <option value="90to95" {{ 'selected' if filters.attendance_band == '90to95' else '' }}>90–95%</option>
+      <option value="gt95" {{ 'selected' if filters.attendance_band == 'gt95' else '' }}>&gt; 95%</option>
+    </select></label>
+
+    <label>Search<br><input type="text" name="search" value="{{ filters.search }}" placeholder="Pupil name"></label>
+    <button class="button" type="submit">Apply</button>
+    <a class="button" href="{{ url_for('admin_pupils_overview') }}">Clear</a>
+    <a class="button" href="{{ url_for('pupil_new') }}">+ Add pupil</a>
+  </form>
+</section>
+
+<section>
+  <div class="table-scroll">
+    <table class="table-sticky">
+      <thead>
+        <tr>
+          <th>Name</th><th>Class</th><th>Year Group</th><th>PP</th><th>LAC/PLA</th><th>Service</th><th>SEND</th><th>EHCP</th><th>Vulnerable</th>
+          <th>Attendance (S1)</th><th>EYFS GLD?</th><th>Y1 Phonics /40</th><th>Y2 Phonics retake /40</th>
+          <th>Y2 Reading</th><th>Y2 Writing</th><th>Y2 Maths</th>
+          <th>Current Reading</th><th>Current Writing</th><th>Current Maths</th>
+          <th>Enrichment</th><th>Interventions</th><th>LAPS</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in pupils %}
+        {% set pr = profiles.get(p.id) %}
+        {% set oc = outcomes.get(p.id, {}) %}
+        <tr>
+          <td><a href="{{ url_for('pupil_page', pupil_id=p.id, year=sel_year_id, subject='maths') }}">{{ p.name }}</a></td>
+          <td>{{ p.klass.name if p.klass else '—' }}</td>
+          <td><input class="tiny-input profile-input" type="number" data-pupil-id="{{ p.id }}" data-field="year_group" value="{{ pr.year_group if pr and pr.year_group is not none else (p.klass.year_group if p.klass and p.klass.year_group is not none else '') }}"></td>
+          {% for field,val in [('pupil_premium',p.pupil_premium),('lac_pla',pr.lac_pla if pr else False),('service_child',p.service_child),('send',pr.send if pr else False),('ehcp',pr.ehcp if pr else False),('vulnerable',pr.vulnerable if pr else False)] %}
+          <td class="checkbox-cell"><input type="checkbox" class="profile-check" data-pupil-id="{{ p.id }}" data-field="{{ field }}" {% if val %}checked{% endif %}></td>
+          {% endfor %}
+          <td><input class="tiny-input profile-input" type="number" step="0.1" data-pupil-id="{{ p.id }}" data-field="attendance_spring1" value="{{ pr.attendance_spring1 if pr and pr.attendance_spring1 is not none else '' }}"></td>
+          <td><select class="profile-input" data-pupil-id="{{ p.id }}" data-field="eyfs_gld"><option value="">—</option><option value="1" {{ 'selected' if pr and pr.eyfs_gld is sameas true else '' }}>Yes</option><option value="0" {{ 'selected' if pr and pr.eyfs_gld is sameas false else '' }}>No</option></select></td>
+          <td><input class="tiny-input profile-input" type="number" data-pupil-id="{{ p.id }}" data-field="y1_phonics" value="{{ pr.y1_phonics if pr and pr.y1_phonics is not none else '' }}"></td>
+          <td><input class="tiny-input profile-input" type="number" data-pupil-id="{{ p.id }}" data-field="y2_phonics_retake" value="{{ pr.y2_phonics_retake if pr and pr.y2_phonics_retake is not none else '' }}"></td>
+          {% for field,val in [('y2_reading',pr.y2_reading if pr else ''),('y2_writing',pr.y2_writing if pr else ''),('y2_maths',pr.y2_maths if pr else '')] %}
+          <td><input class="tiny-input profile-input" type="text" data-pupil-id="{{ p.id }}" data-field="{{ field }}" value="{{ val or '' }}"></td>
+          {% endfor %}
+          {% for key in ['reading','writing','maths'] %}
+            {% set text = oc.get(key) %}
+            <td>{% if text %}<span class="band {{ band_class_from_text(text) }}">{{ text }}</span>{% else %}—{% endif %}</td>
+          {% endfor %}
+          <td><textarea class="profile-input" data-pupil-id="{{ p.id }}" data-field="enrichment" rows="2">{{ pr.enrichment if pr and pr.enrichment else '' }}</textarea></td>
+          <td><textarea class="profile-input" data-pupil-id="{{ p.id }}" data-field="interventions_note" rows="2">{{ pr.interventions_note if pr and pr.interventions_note else '' }}</textarea></td>
+          <td class="checkbox-cell"><input type="checkbox" class="profile-check" data-pupil-id="{{ p.id }}" data-field="laps" {% if p.laps %}checked{% endif %}></td>
+        </tr>
+      {% else %}
+      <tr><td colspan="22" class="center">No pupils match these filters.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+async function postJSON(url, payload) {
+  const res = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.ok === false) throw new Error(data.error || "Save failed");
+  return data;
+}
+async function saveField(el, value) {
+  try {
+    await postJSON("{{ url_for('api_pupil_profile_update') }}", {pupil_id: Number(el.dataset.pupilId), field: el.dataset.field, value});
+    el.style.outline = "1px solid #16a34a";
+    setTimeout(() => { el.style.outline = ""; }, 500);
+  } catch (e) {
+    el.style.outline = "1px solid #dc2626";
+  }
+}
+document.querySelectorAll('.profile-input').forEach((el) => {
+  const evt = el.tagName === 'SELECT' ? 'change' : 'blur';
+  el.addEventListener(evt, () => saveField(el, el.value));
+});
+document.querySelectorAll('.profile-check').forEach((el) => {
+  el.addEventListener('change', () => saveField(el, el.checked));
+});
+</script>
+{% endblock %}
