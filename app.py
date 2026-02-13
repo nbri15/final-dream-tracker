@@ -4376,13 +4376,14 @@ def create_app():
         year_group_filter = (request.args.get("year_group") or "").strip()
         class_filter = (request.args.get("class") or "").strip()
         pp_filter = (request.args.get("pp") or "").strip()
-        lac_filter = (request.args.get("lac_pla") or "").strip()
+        laps_filter = (request.args.get("laps") or "").strip()
         service_filter = (request.args.get("service") or "").strip()
         send_filter = (request.args.get("send") or "").strip()
         ehcp_filter = (request.args.get("ehcp") or "").strip()
         vulnerable_filter = (request.args.get("vulnerable") or "").strip()
         attendance_band = (request.args.get("attendance_band") or "").strip()
         search = (request.args.get("search") or "").strip()
+        show_all = parse_bool_filter(request.args.get("show_all")) is True
 
         classes = active_classes_query().order_by(SchoolClass.name.asc()).all()
         query = (
@@ -4391,6 +4392,15 @@ def create_app():
             .outerjoin(PupilProfile, PupilProfile.pupil_id == Pupil.id)
             .filter(SchoolClass.is_archived.is_(False), SchoolClass.is_archive.is_(False))
         )
+
+        if not show_all:
+            query = query.filter(
+                or_(
+                    Pupil.pupil_premium.is_(True),
+                    Pupil.laps.is_(True),
+                    Pupil.service_child.is_(True),
+                )
+            )
 
         if class_filter and class_filter != "all":
             try:
@@ -4413,8 +4423,8 @@ def create_app():
 
         for value, field in (
             (pp_filter, Pupil.pupil_premium),
+            (laps_filter, Pupil.laps),
             (service_filter, Pupil.service_child),
-            (lac_filter, PupilProfile.lac_pla),
             (send_filter, PupilProfile.send),
             (ehcp_filter, PupilProfile.ehcp),
             (vulnerable_filter, PupilProfile.vulnerable),
@@ -4452,13 +4462,14 @@ def create_app():
                 "year_group": year_group_filter,
                 "class": class_filter,
                 "pp": pp_filter,
-                "lac_pla": lac_filter,
+                "laps": laps_filter,
                 "service": service_filter,
                 "send": send_filter,
                 "ehcp": ehcp_filter,
                 "vulnerable": vulnerable_filter,
                 "attendance_band": attendance_band,
                 "search": search,
+                "show_all": show_all,
             },
         )
 
