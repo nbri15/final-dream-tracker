@@ -3835,7 +3835,9 @@ def create_app():
         term = (request.args.get("term") or "").strip()
         subject = (request.args.get("subject") or "").strip().lower()
         status = (request.args.get("status") or "").strip().lower()
+        lead = (request.form.get("lead") or request.args.get("lead") or "").strip()
         group_name = (request.form.get("group") or request.args.get("group") or "").strip()
+        year_group = (request.form.get("year_group") or request.args.get("year_group") or "").strip()
         pp = request.args.get("pp", "")
         include_pupil_ids = parse_id_csv(request.args.get("pupil_ids"))
 
