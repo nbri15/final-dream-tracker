@@ -4036,6 +4036,8 @@ def create_app():
     @app.route("/admin/interventions", methods=["GET", "POST"])
     @login_required
     def admin_interventions():
+        if not getattr(current_user, "is_admin", False):
+            abort(403)
         return redirect(url_for("interventions", **request.args.to_dict(flat=True)))
 
     @app.route("/reports/parent-summary/<int:pupil_id>", methods=["GET", "POST"])
@@ -4886,6 +4888,10 @@ def create_app():
         )
 
 
+    if app.debug:
+        admin_routes = [rule.rule for rule in app.url_map.iter_rules() if rule.endpoint == "admin_interventions"]
+        if "/admin/interventions" not in admin_routes:
+            raise RuntimeError("Missing canonical admin interventions route: /admin/interventions")
 
     # ---- Critical: return the Flask app object
     return app

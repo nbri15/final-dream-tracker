@@ -343,7 +343,7 @@
         {% if current_user.is_admin %}
           <div class="section-title">Admin</div>
           <a class="sidebar-link {{ 'active' if request.endpoint in ['admin_home','admin_overview'] else '' }}" href="{{ url_for('admin_home') }}">Home</a>
-          <a class="sidebar-link {{ 'active' if request.endpoint in ['interventions','admin_interventions'] else '' }}" href="{{ url_for('interventions') }}">Interventions</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint in ['interventions','admin_interventions'] else '' }}" href="{{ url_for('admin_interventions') }}">Interventions</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_years' else '' }}" href="{{ url_for('admin_years') }}">Years</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_promote' else '' }}" href="{{ url_for('admin_promote') }}">Promote</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_users' else '' }}" href="{{ url_for('admin_users') }}">Users</a>
