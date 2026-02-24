@@ -872,8 +872,14 @@ def create_app():
 
     @app.context_processor
     def inject_sats_nav():
+        def sort_link(sort_key, direction="asc"):
+            args = request.args.to_dict(flat=True)
+            args["sort"] = sort_key
+            args["dir"] = direction
+            return url_for(request.endpoint, **args)
+
         if not getattr(current_user, "is_authenticated", False):
-            return {"sats_nav": None, "y6_nav": None}
+            return {"sats_nav": None, "y6_nav": None, "sort_link": sort_link}
 
         year = parse_year_id_or_current(request.args.get("year"))
         class_sel = request.args.get("class")
@@ -892,7 +898,7 @@ def create_app():
         if klass and (not klass.is_archived) and (not klass.is_archive) and klass.year_group == 6:
             sats_nav = {"class_id": klass.id, "year_id": (year.id if year else None)}
 
-        return {"sats_nav": sats_nav, "y6_nav": sats_nav}
+        return {"sats_nav": sats_nav, "y6_nav": sats_nav, "sort_link": sort_link}
 
 
     WRITING_BANDS = ("working_towards", "working_at", "exceeding")
@@ -2202,12 +2208,6 @@ def create_app():
             "term": term,
         }
 
-        def sort_link(sort_key, dir_key):
-            args = request.args.to_dict()
-            args["sort"] = sort_key
-            args["dir"] = dir_key
-            return url_for("dashboard", subject=subject, **args)
-
         overview_chart = None
         if not is_admin and mode == "home" and klass and selected_year:
             tvals = kpi.get(term, {})
@@ -2260,7 +2260,6 @@ def create_app():
             overview_chart=overview_chart,
             sort=sort,
             direction=direction,
-            sort_link=sort_link,
             table_rows=table_rows,
         )
 
