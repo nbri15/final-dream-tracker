@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% block title %}Dashboard — Dream Tracker{% endblock %}
 {% block content %}
+{% from "_sort_header.html" import sort_control %}
 
 <style>
   .score-input { width: 64px; padding: 4px 6px; }
@@ -11,6 +12,8 @@
   .add-pupil-link:hover { text-decoration: underline; }
   .save-status { margin-left: 8px; color: #6b7280; font-size: 0.9em; transition: opacity .6s ease; }
   .band-select { min-width: 160px; }
+  .sort-header { display:flex; align-items:center; gap:4px; }
+  .sort-select { font-size:11px; padding:1px 2px; color:#6b7280; max-width:72px; }
 </style>
 
 {% if not current_user.is_authenticated %}
@@ -204,15 +207,15 @@
     <table class="table-sticky">
       <thead>
         <tr>
-          <th rowspan="3">No.</th>
-          <th rowspan="3">Name</th>
+          <th rowspan="3">{{ sort_control("No.", "number", sort, direction, "Low→High", "High→Low") }}</th>
+          <th rowspan="3">{{ sort_control("Name", "name", sort, direction, "A→Z", "Z→A") }}</th>
           {% if is_admin and (selected_class_id == 'all') %}
             <th rowspan="3">Class</th>
           {% endif %}
-          <th rowspan="3">Gender</th>
-          <th rowspan="3">PP</th>
-          <th rowspan="3">LAPS</th>
-          <th rowspan="3">Service</th>
+          <th rowspan="3">{{ sort_control("Gender", "gender", sort, direction, "A→Z", "Z→A") }}</th>
+          <th rowspan="3">{{ sort_control("PP", "pp", sort, direction, "No→Yes", "Yes→No") }}</th>
+          <th rowspan="3">{{ sort_control("LAPS", "laps", sort, direction, "No→Yes", "Yes→No") }}</th>
+          <th rowspan="3">{{ sort_control("Service", "service", sort, direction, "No→Yes", "Yes→No") }}</th>
 
           <th class="term-divider" colspan="3">Autumn</th>
           <th class="term-divider" colspan="3">Spring</th>
@@ -221,9 +224,15 @@
         </tr>
 
         <tr>
-          <th class="term-divider">{{ paper_labels[0] }}</th><th>{{ paper_labels[1] }}</th><th>Combined</th>
-          <th class="term-divider">{{ paper_labels[0] }}</th><th>{{ paper_labels[1] }}</th><th>Combined</th>
-          <th class="term-divider">{{ paper_labels[0] }}</th><th>{{ paper_labels[1] }}</th><th>Combined</th>
+          {% if subject == "writing" %}
+            <th class="term-divider">{{ paper_labels[0] }}</th><th>{{ paper_labels[1] }}</th><th>Combined</th>
+            <th class="term-divider">{{ paper_labels[0] }}</th><th>{{ paper_labels[1] }}</th><th>Combined</th>
+            <th class="term-divider">{{ paper_labels[0] }}</th><th>{{ paper_labels[1] }}</th><th>Combined</th>
+          {% else %}
+            <th class="term-divider">{{ sort_control(paper_labels[0], "autumn_a", sort, direction, "Low→High", "High→Low") }}</th><th>{{ sort_control(paper_labels[1], "autumn_b", sort, direction, "Low→High", "High→Low") }}</th><th>{{ sort_control("Combined", "autumn_combined", sort, direction, "Low→High", "High→Low") }}</th>
+            <th class="term-divider">{{ sort_control(paper_labels[0], "spring_a", sort, direction, "Low→High", "High→Low") }}</th><th>{{ sort_control(paper_labels[1], "spring_b", sort, direction, "Low→High", "High→Low") }}</th><th>{{ sort_control("Combined", "spring_combined", sort, direction, "Low→High", "High→Low") }}</th>
+            <th class="term-divider">{{ sort_control(paper_labels[0], "summer_a", sort, direction, "Low→High", "High→Low") }}</th><th>{{ sort_control(paper_labels[1], "summer_b", sort, direction, "Low→High", "High→Low") }}</th><th>{{ sort_control("Combined", "summer_combined", sort, direction, "Low→High", "High→Low") }}</th>
+          {% endif %}
         </tr>
 
         <tr>
@@ -253,10 +262,11 @@
 
       <tbody>
         {% if pupils %}
-          {% for p in pupils %}
-            {% set rA = results_by_pupil.get(p.id, {}).get('Autumn') %}
-            {% set rS = results_by_pupil.get(p.id, {}).get('Spring') %}
-            {% set rU = results_by_pupil.get(p.id, {}).get('Summer') %}
+          {% for row in table_rows %}
+            {% set p = row.pupil %}
+            {% set rA = row.rA %}
+            {% set rS = row.rS %}
+            {% set rU = row.rU %}
 
             <tr>
               <td>{{ p.number or '' }}</td>
@@ -293,9 +303,9 @@
               </td>
 
               {% if subject == "writing" %}
-                {% set wA = writing_by_pupil.get(p.id, {}).get('Autumn') %}
-                {% set wS = writing_by_pupil.get(p.id, {}).get('Spring') %}
-                {% set wU = writing_by_pupil.get(p.id, {}).get('Summer') %}
+                {% set wA = row.wA %}
+                {% set wS = row.wS %}
+                {% set wU = row.wU %}
                 {% for term, w in [('Autumn', wA), ('Spring', wS), ('Summer', wU)] %}
                   <td class="term-divider">
                     {% if is_admin %}
