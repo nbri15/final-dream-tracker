@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block title %}Dashboard — Dream Tracker{% endblock %}
 {% block content %}
-{% from "_sort_header.html" import sort_control %}
+{% from "_sort_header.html" import sort_control with context %}
 
 <style>
   .score-input { width: 64px; padding: 4px 6px; }
