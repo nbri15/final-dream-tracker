@@ -1857,6 +1857,18 @@ def create_app():
         term = (request.args.get("term") or "Autumn").strip()
         if term not in TERMS:
             term = "Autumn"
+        sort = (request.args.get("sort") or "name").strip().lower()
+        direction = (request.args.get("dir") or "asc").strip().lower()
+        valid_sorts = {
+            "name", "number", "gender", "pp", "laps", "service",
+            "autumn_a", "autumn_b", "autumn_combined",
+            "spring_a", "spring_b", "spring_combined",
+            "summer_a", "summer_b", "summer_combined",
+        }
+        if sort not in valid_sorts:
+            sort = "name"
+        if direction not in {"asc", "desc"}:
+            direction = "asc"
 
         classes = active_classes_query().order_by(SchoolClass.name).all()
         years = AcademicYear.query.order_by(AcademicYear.label.asc()).all()
@@ -2032,6 +2044,71 @@ def create_app():
                         r._score_a, r._score_b = get_result_scores(r, subject)
                         results_by_pupil[r.pupil_id][r.term] = r
 
+        table_rows = []
+        for p in pupils:
+            table_rows.append({
+                "pupil": p,
+                "rA": results_by_pupil.get(p.id, {}).get("Autumn"),
+                "rS": results_by_pupil.get(p.id, {}).get("Spring"),
+                "rU": results_by_pupil.get(p.id, {}).get("Summer"),
+                "wA": writing_by_pupil.get(p.id, {}).get("Autumn"),
+                "wS": writing_by_pupil.get(p.id, {}).get("Spring"),
+                "wU": writing_by_pupil.get(p.id, {}).get("Summer"),
+            })
+
+        def score_value(row, season, field):
+            result = row.get(f"r{season}")
+            if not result:
+                return None
+            if field == "a":
+                return result._score_a
+            if field == "b":
+                return result._score_b
+            if field == "combined":
+                return result.combined_pct
+            return None
+
+        def sort_key_for_row(row):
+            p = row["pupil"]
+            if sort == "name":
+                return (0, (p.name or "").lower())
+            if sort == "number":
+                if p.number is None:
+                    return (1, 0)
+                return (0, p.number)
+            if sort == "gender":
+                return (0, (p.gender or "").lower(), (p.name or "").lower())
+            if sort == "pp":
+                return (0, 1 if p.pupil_premium else 0, (p.name or "").lower())
+            if sort == "laps":
+                return (0, 1 if p.laps else 0, (p.name or "").lower())
+            if sort == "service":
+                return (0, 1 if p.service_child else 0, (p.name or "").lower())
+
+            score_fields = {
+                "autumn_a": ("A", "a"), "autumn_b": ("A", "b"), "autumn_combined": ("A", "combined"),
+                "spring_a": ("S", "a"), "spring_b": ("S", "b"), "spring_combined": ("S", "combined"),
+                "summer_a": ("U", "a"), "summer_b": ("U", "b"), "summer_combined": ("U", "combined"),
+            }
+            if sort in score_fields and subject != "writing":
+                season, field = score_fields[sort]
+                val = score_value(row, season, field)
+                if val is None:
+                    return (1, 0, (p.name or "").lower())
+                return (0, val, (p.name or "").lower())
+
+            return (0, (p.name or "").lower())
+
+        if sort in valid_sorts:
+            table_rows.sort(key=sort_key_for_row)
+            if direction == "desc":
+                present = [r for r in table_rows if sort_key_for_row(r)[0] == 0]
+                missing = [r for r in table_rows if sort_key_for_row(r)[0] == 1]
+                present.reverse()
+                table_rows = present + missing
+
+        pupils = [row["pupil"] for row in table_rows]
+
         # Canonical base dataset (exactly what the table renders): one row per pupil per term.
         base_rows_by_term = {t: [] for t in TERMS}
         for p in pupils:
@@ -2125,6 +2202,12 @@ def create_app():
             "term": term,
         }
 
+        def sort_link(sort_key, dir_key):
+            args = request.args.to_dict()
+            args["sort"] = sort_key
+            args["dir"] = dir_key
+            return url_for("dashboard", subject=subject, **args)
+
         overview_chart = None
         if not is_admin and mode == "home" and klass and selected_year:
             tvals = kpi.get(term, {})
@@ -2175,6 +2258,10 @@ def create_app():
             action_needed=action_needed,
             mode=mode,
             overview_chart=overview_chart,
+            sort=sort,
+            direction=direction,
+            sort_link=sort_link,
+            table_rows=table_rows,
         )
 
 
