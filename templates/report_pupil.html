@@ -6,13 +6,13 @@
 <p>{{ year.label }}</p>
 <button class="button" onclick="window.print()">Print</button>
 <a class="button" href="{{ url_for('report_parent_summary', pupil_id=pupil.id, year=year.id) }}">Parent summary</a>
-<table class="table-sticky"><thead><tr><th>Term</th><th>Maths %/Band</th><th>Reading %/Band</th><th>SPaG %/Band</th><th>Writing</th></tr></thead><tbody>
+<table class="table-sticky sortable"><thead><tr><th class="sortable" data-sort="text">Term</th><th class="sortable" data-sort="number">Maths %/Band</th><th class="sortable" data-sort="number">Reading %/Band</th><th class="sortable" data-sort="number">SPaG %/Band</th><th class="sortable" data-sort="text">Writing</th></tr></thead><tbody>
 {% for t in terms %}
 <tr>
 <td>{{ t }}</td>
-<td>{{ by_term[t].core.get('maths',{}).get('combined','') }} {{ by_term[t].core.get('maths',{}).get('band','') }}</td>
-<td>{{ by_term[t].core.get('reading',{}).get('combined','') }} {{ by_term[t].core.get('reading',{}).get('band','') }}</td>
-<td>{{ by_term[t].core.get('spag',{}).get('combined','') }} {{ by_term[t].core.get('spag',{}).get('band','') }}</td>
+<td data-value="{{ by_term[t].core.get('maths',{}).get('combined','') }}">{{ by_term[t].core.get('maths',{}).get('combined','') }} {{ by_term[t].core.get('maths',{}).get('band','') }}</td>
+<td data-value="{{ by_term[t].core.get('reading',{}).get('combined','') }}">{{ by_term[t].core.get('reading',{}).get('combined','') }} {{ by_term[t].core.get('reading',{}).get('band','') }}</td>
+<td data-value="{{ by_term[t].core.get('spag',{}).get('combined','') }}">{{ by_term[t].core.get('spag',{}).get('combined','') }} {{ by_term[t].core.get('spag',{}).get('band','') }}</td>
 <td>{{ by_term[t].get('writing_band','') }}</td>
 </tr>
 {% endfor %}</tbody></table>

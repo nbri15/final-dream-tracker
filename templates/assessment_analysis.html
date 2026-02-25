@@ -30,13 +30,13 @@
 <hr>
 <h2>Pupils flagged for intervention</h2>
 {% if flagged %}
-  <table>
-    <thead><tr><th>Pupil</th><th>Overall %</th><th>Reasons</th></tr></thead>
+  <table class="sortable">
+    <thead><tr><th class="sortable" data-sort="text">Pupil</th><th class="sortable" data-sort="number">Overall %</th><th class="sortable" data-sort="text">Reasons</th></tr></thead>
     <tbody>
       {% for row in flagged %}
         <tr>
           <td><a class="flag" href="{{ url_for('pupil_page', pupil_id=row.pupil.id, year=assessment.academic_year_id, subject=assessment.subject) }}">🚩 {{ row.pupil.name }}</a></td>
-          <td>{{ row.overall_pct }}%</td>
+          <td data-value="{{ row.overall_pct if row.overall_pct is not none else "" }}">{{ row.overall_pct }}%</td>
           <td>{{ '; '.join(row.reasons) }}</td>
         </tr>
       {% endfor %}

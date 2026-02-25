@@ -204,34 +204,34 @@
     <h2>Pupils & results <span id="save-status" class="save-status" aria-live="polite"></span></h2>
 
     <div class="table-scroll">
-    <table class="table-sticky">
+    <table class="table-sticky sortable">
       <thead>
         <tr>
-          <th rowspan="3">{{ sort_control("No.", "number", sort, direction, "Low→High", "High→Low") }}</th>
-          <th rowspan="3">{{ sort_control("Name", "name", sort, direction, "A→Z", "Z→A") }}</th>
+          <th class="sortable" data-sort="text" rowspan="3">{{ sort_control("No.", "number", sort, direction, "Low→High", "High→Low") }}</th>
+          <th class="sortable" data-sort="text" rowspan="3">{{ sort_control("Name", "name", sort, direction, "A→Z", "Z→A") }}</th>
           {% if is_admin and (selected_class_id == 'all') %}
-            <th rowspan="3">Class</th>
+            <th class="sortable" data-sort="text" rowspan="3">Class</th>
           {% endif %}
-          <th rowspan="3">{{ sort_control("Gender", "gender", sort, direction, "A→Z", "Z→A") }}</th>
-          <th rowspan="3">{{ sort_control("PP", "pp", sort, direction, "No→Yes", "Yes→No") }}</th>
-          <th rowspan="3">{{ sort_control("LAPS", "laps", sort, direction, "No→Yes", "Yes→No") }}</th>
-          <th rowspan="3">{{ sort_control("Service", "service", sort, direction, "No→Yes", "Yes→No") }}</th>
+          <th class="sortable" data-sort="text" rowspan="3">{{ sort_control("Gender", "gender", sort, direction, "A→Z", "Z→A") }}</th>
+          <th class="sortable" data-sort="text" rowspan="3">{{ sort_control("PP", "pp", sort, direction, "No→Yes", "Yes→No") }}</th>
+          <th class="sortable" data-sort="text" rowspan="3">{{ sort_control("LAPS", "laps", sort, direction, "No→Yes", "Yes→No") }}</th>
+          <th class="sortable" data-sort="text" rowspan="3">{{ sort_control("Service", "service", sort, direction, "No→Yes", "Yes→No") }}</th>
 
           <th class="term-divider" colspan="3">Autumn</th>
           <th class="term-divider" colspan="3">Spring</th>
           <th class="term-divider" colspan="3">Summer</th>
-          <th rowspan="3">Actions</th>
+          <th class="sortable" data-sort="text" rowspan="3">Actions</th>
         </tr>
 
         <tr>
           {% if subject == "writing" %}
-            <th class="term-divider">{{ paper_labels[0] }}</th><th>{{ paper_labels[1] }}</th><th>Combined</th>
-            <th class="term-divider">{{ paper_labels[0] }}</th><th>{{ paper_labels[1] }}</th><th>Combined</th>
-            <th class="term-divider">{{ paper_labels[0] }}</th><th>{{ paper_labels[1] }}</th><th>Combined</th>
+            <th class="term-divider">{{ paper_labels[0] }}</th><th class="sortable" data-sort="text">{{ paper_labels[1] }}</th><th class="sortable" data-sort="number">Combined</th>
+            <th class="term-divider">{{ paper_labels[0] }}</th><th class="sortable" data-sort="text">{{ paper_labels[1] }}</th><th class="sortable" data-sort="number">Combined</th>
+            <th class="term-divider">{{ paper_labels[0] }}</th><th class="sortable" data-sort="text">{{ paper_labels[1] }}</th><th class="sortable" data-sort="number">Combined</th>
           {% else %}
-            <th class="term-divider">{{ sort_control(paper_labels[0], "autumn_a", sort, direction, "Low→High", "High→Low") }}</th><th>{{ sort_control(paper_labels[1], "autumn_b", sort, direction, "Low→High", "High→Low") }}</th><th>{{ sort_control("Combined", "autumn_combined", sort, direction, "Low→High", "High→Low") }}</th>
-            <th class="term-divider">{{ sort_control(paper_labels[0], "spring_a", sort, direction, "Low→High", "High→Low") }}</th><th>{{ sort_control(paper_labels[1], "spring_b", sort, direction, "Low→High", "High→Low") }}</th><th>{{ sort_control("Combined", "spring_combined", sort, direction, "Low→High", "High→Low") }}</th>
-            <th class="term-divider">{{ sort_control(paper_labels[0], "summer_a", sort, direction, "Low→High", "High→Low") }}</th><th>{{ sort_control(paper_labels[1], "summer_b", sort, direction, "Low→High", "High→Low") }}</th><th>{{ sort_control("Combined", "summer_combined", sort, direction, "Low→High", "High→Low") }}</th>
+            <th class="term-divider">{{ sort_control(paper_labels[0], "autumn_a", sort, direction, "Low→High", "High→Low") }}</th><th class="sortable" data-sort="text">{{ sort_control(paper_labels[1], "autumn_b", sort, direction, "Low→High", "High→Low") }}</th><th class="sortable" data-sort="text">{{ sort_control("Combined", "autumn_combined", sort, direction, "Low→High", "High→Low") }}</th>
+            <th class="term-divider">{{ sort_control(paper_labels[0], "spring_a", sort, direction, "Low→High", "High→Low") }}</th><th class="sortable" data-sort="text">{{ sort_control(paper_labels[1], "spring_b", sort, direction, "Low→High", "High→Low") }}</th><th class="sortable" data-sort="text">{{ sort_control("Combined", "spring_combined", sort, direction, "Low→High", "High→Low") }}</th>
+            <th class="term-divider">{{ sort_control(paper_labels[0], "summer_a", sort, direction, "Low→High", "High→Low") }}</th><th class="sortable" data-sort="text">{{ sort_control(paper_labels[1], "summer_b", sort, direction, "Low→High", "High→Low") }}</th><th class="sortable" data-sort="text">{{ sort_control("Combined", "summer_combined", sort, direction, "Low→High", "High→Low") }}</th>
           {% endif %}
         </tr>
 

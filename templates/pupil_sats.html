@@ -23,12 +23,12 @@
 {% set spag = headers_by_group.get('SPaG', []) %}
 {% set all_headers = maths + reading + spag %}
 
-<table>
+<table class="sortable">
   <thead>
     <tr>
-      <th colspan="{{ maths|length }}">Maths</th>
-      <th colspan="{{ reading|length }}">Reading</th>
-      <th colspan="{{ spag|length }}">SPaG</th>
+      <th class="sortable" data-sort="text" colspan="{{ maths|length }}">Maths</th>
+      <th class="sortable" data-sort="text" colspan="{{ reading|length }}">Reading</th>
+      <th class="sortable" data-sort="text" colspan="{{ spag|length }}">SPaG</th>
     </tr>
     <tr>
       {% for h in all_headers %}

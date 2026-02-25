@@ -85,21 +85,21 @@
 <section class="card">
   <form method="post" action="{{ url_for('interventions', **filter_params) }}">
     <input type="hidden" name="action" value="save">
-    <table>
+    <table class="sortable">
       <thead>
         <tr>
-          {% if is_admin %}<th>Class</th>{% endif %}
-          <th>Pupil</th>
-          <th>Group</th>
-          <th>Lead</th>
-          <th>Start</th>
-          <th>End</th>
-          <th>Pre</th>
-          <th>Post</th>
-          <th>Impact</th>
-          <th>Notes</th>
-          <th>Status</th>
-          {% if show_review_due_date %}<th>Review due date</th>{% endif %}
+          {% if is_admin %}<th class="sortable" data-sort="text">Class</th>{% endif %}
+          <th class="sortable" data-sort="text">Pupil</th>
+          <th class="sortable" data-sort="text">Group</th>
+          <th class="sortable" data-sort="text">Lead</th>
+          <th class="sortable" data-sort="text">Start</th>
+          <th class="sortable" data-sort="text">End</th>
+          <th class="sortable" data-sort="number">Pre</th>
+          <th class="sortable" data-sort="number">Post</th>
+          <th class="sortable" data-sort="number">Impact</th>
+          <th class="sortable" data-sort="text">Notes</th>
+          <th class="sortable" data-sort="text">Status</th>
+          {% if show_review_due_date %}<th class="sortable" data-sort="text">Review due date</th>{% endif %}
         </tr>
       </thead>
       <tbody>
@@ -111,9 +111,9 @@
             <td>{{ it.selector.username if it.selector else '—' }}</td>
             <td>{{ it.created_at.strftime('%Y-%m-%d') if it.created_at else '' }}</td>
             <td>{{ it.updated_at.strftime('%Y-%m-%d') if it.status == 'closed' and it.updated_at else '—' }}</td>
-            <td><input type="text" name="pre_{{ it.id }}" value="{{ it.pre_result or '' }}"></td>
-            <td><input type="text" name="post_{{ it.id }}" value="{{ it.post_result or '' }}"></td>
-            <td>{% if it.impact is not none %}<strong>{{ it.impact }}</strong>{% else %}—{% endif %}</td>
+            <td data-value="{{ it.pre_score_value if it.pre_score_value is not none else '' }}"><input type="text" name="pre_{{ it.id }}" value="{{ it.pre_result or '' }}"></td>
+            <td data-value="{{ it.post_score_value if it.post_score_value is not none else '' }}"><input type="text" name="post_{{ it.id }}" value="{{ it.post_result or '' }}"></td>
+            <td data-value="{{ it.impact if it.impact is not none else '' }}">{% if it.impact is not none %}<strong>{{ it.impact }}</strong>{% else %}—{% endif %}</td>
             <td><textarea name="support_{{ it.id }}" rows="2">{{ it.support_plan or '' }}</textarea><br><small>{{ it.teacher_note or '' }}</small><input type="hidden" name="teacher_note_{{ it.id }}" value="{{ it.teacher_note or '' }}"></td>
             <td>
               {% if it.status == 'closed' and it.post_score_value is none %}<span class="band band-wts">Awaiting post score</span><br>{% endif %}

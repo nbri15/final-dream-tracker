@@ -497,5 +497,66 @@
       syncForViewport();
     })();
   </script>
+
+  <script>
+  (function () {
+    function getCellValue(td) {
+      if (!td) return "";
+      const dv = td.getAttribute("data-value");
+      return (dv !== null) ? dv : (td.textContent || "").trim();
+    }
+
+    function parseValue(val, type) {
+      if (type === "number") {
+        const n = parseFloat(String(val).replace(/[^\d.\-]/g, ""));
+        return Number.isFinite(n) ? n : -Infinity;
+      }
+      return String(val).toLowerCase();
+    }
+
+    function setHeaderIndicator(th, dir) {
+      const base = th.getAttribute("data-label") || th.textContent.replace(/[▲▼]/g, "").trim();
+      th.setAttribute("data-label", base);
+      th.textContent = base + (dir === "asc" ? " ▲" : " ▼");
+    }
+
+    document.addEventListener("click", function (e) {
+      const th = e.target.closest("th.sortable");
+      if (!th) return;
+
+      const table = th.closest("table");
+      const tbody = table && table.querySelector("tbody");
+      if (!tbody) return;
+
+      const type = th.dataset.sort || "text";
+      const colIndex = Array.from(th.parentNode.children).indexOf(th);
+
+      const current = th.dataset.dir || "asc";
+      const dir = current === "asc" ? "desc" : "asc";
+      th.dataset.dir = dir;
+
+      table.querySelectorAll("th.sortable").forEach(h => {
+        if (h !== th) {
+          h.dataset.dir = "";
+          const base = h.getAttribute("data-label");
+          if (base) h.textContent = base;
+        }
+      });
+      setHeaderIndicator(th, dir);
+
+      const rows = Array.from(tbody.querySelectorAll("tr"));
+      rows.sort((a, b) => {
+        const av = parseValue(getCellValue(a.children[colIndex]), type);
+        const bv = parseValue(getCellValue(b.children[colIndex]), type);
+        if (av < bv) return dir === "asc" ? -1 : 1;
+        if (av > bv) return dir === "asc" ? 1 : -1;
+        return 0;
+      });
+
+      rows.forEach(r => tbody.appendChild(r));
+    });
+  })();
+  </script>
+
 </body>
 </html>

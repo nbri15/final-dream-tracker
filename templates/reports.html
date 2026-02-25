@@ -119,11 +119,11 @@
 
   {% if dataset.rows %}
     <div class="table-scroll">
-      <table class="table-sticky">
+      <table class="table-sticky sortable">
         <thead>
           <tr>
             {% for h in dataset.headers %}
-              <th>{{ h }}</th>
+              <th class="sortable" data-sort="text">{{ h }}</th>
             {% endfor %}
           </tr>
         </thead>

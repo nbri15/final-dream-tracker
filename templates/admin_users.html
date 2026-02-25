@@ -5,14 +5,14 @@
 <p><a class="button" href="{{ url_for('admin_user_new') }}">New user</a></p>
 <section class="card">
   <div class="table-scroll">
-  <table>
+  <table class="sortable">
     <thead>
       <tr>
-        <th>Username</th>
-        <th>Admin?</th>
-        <th>Active?</th>
-        <th>Assigned classes</th>
-        <th>Actions</th>
+        <th class="sortable" data-sort="text">Username</th>
+        <th class="sortable" data-sort="text">Admin?</th>
+        <th class="sortable" data-sort="text">Active?</th>
+        <th class="sortable" data-sort="text">Assigned classes</th>
+        <th class="sortable" data-sort="text">Actions</th>
       </tr>
     </thead>
     <tbody>

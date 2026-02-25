@@ -14,8 +14,8 @@
 </form>
 <section class="card">
   <div class="table-scroll">
-<table>
-  <thead><tr><th>Title</th><th>Subject</th><th>Paper</th><th>Class</th><th>Year</th><th>Term</th><th>Actions</th></tr></thead>
+<table class="sortable">
+  <thead><tr><th class="sortable" data-sort="text">Title</th><th class="sortable" data-sort="text">Subject</th><th class="sortable" data-sort="text">Paper</th><th class="sortable" data-sort="text">Class</th><th class="sortable" data-sort="text">Year</th><th class="sortable" data-sort="text">Term</th><th class="sortable" data-sort="text">Actions</th></tr></thead>
   <tbody>
     {% for a in assessments %}
     <tr>
