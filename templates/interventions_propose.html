@@ -11,9 +11,9 @@
   <input type="hidden" name="paper" value="{{ paper }}">
   <input type="hidden" name="subject" value="{{ subject }}">
 
-  <table class="table-sticky">
+  <table class="table-sticky sortable">
     <thead>
-      <tr><th>Select</th><th>Pupil</th><th>%</th><th>Focus areas</th><th><label for="teacher-note">Teacher note</label></th></tr>
+      <tr><th>Select</th><th class="sortable" data-sort="text">Pupil</th><th class="sortable" data-sort="number">%</th><th class="sortable" data-sort="text">Focus areas</th><th class="sortable" data-sort="text"><label for="teacher-note">Teacher note</label></th></tr>
     </thead>
     <tbody>
       {% for row in rows %}
@@ -23,7 +23,7 @@
                  {{ 'checked' if row.pupil.id in pre_ids or row.existing else '' }}>
         </td>
         <td>{{ row.pupil.number or '' }} {{ row.pupil.name }}</td>
-        <td>{{ row.pct }}%</td>
+        <td data-value="{{ row.pct if row.pct is not none else "" }}">{{ row.pct }}%</td>
         <td>{{ row.focus or 'General' }}</td>
         <td>
           <textarea id="teacher-note" name="teacher_note_{{ row.pupil.id }}" rows="2" cols="35" placeholder="Teacher notes...">{{ row.existing.teacher_note if row.existing else '' }}</textarea>

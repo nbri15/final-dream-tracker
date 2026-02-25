@@ -3,8 +3,8 @@
 {% block content %}
 <h1>GAP templates</h1>
 <p><a class="button" href="{{ url_for('gap_template_new') }}">+ New template</a></p>
-<table class="table-sticky">
-<thead><tr><th>Title</th><th>Subject</th><th>Paper</th><th>Year</th><th>Year group</th><th>Term</th><th>Version</th><th>Active</th><th>Actions</th></tr></thead>
+<table class="table-sticky sortable">
+<thead><tr><th class="sortable" data-sort="text">Title</th><th class="sortable" data-sort="text">Subject</th><th class="sortable" data-sort="text">Paper</th><th class="sortable" data-sort="text">Year</th><th class="sortable" data-sort="number">Year group</th><th class="sortable" data-sort="text">Term</th><th class="sortable" data-sort="text">Version</th><th class="sortable" data-sort="text">Active</th><th class="sortable" data-sort="text">Actions</th></tr></thead>
 <tbody>
 {% for t in items %}
 <tr>

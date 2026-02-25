@@ -31,10 +31,10 @@
 </form>
 
 <section>
-  <table>
+  <table class="sortable">
     <thead>
       <tr>
-        <th>Term</th><th>{{ paper_labels[0] }}</th><th>{{ paper_labels[1] }}</th><th>Combined %</th><th>Band</th><th>Δ</th><th>Notes</th>
+        <th class="sortable" data-sort="text">Term</th><th class="sortable" data-sort="text">{{ paper_labels[0] }}</th><th class="sortable" data-sort="text">{{ paper_labels[1] }}</th><th class="sortable" data-sort="number">Combined %</th><th class="sortable" data-sort="text">Band</th><th class="sortable" data-sort="number">Δ</th><th class="sortable" data-sort="text">Notes</th>
       </tr>
     </thead>
     <tbody>

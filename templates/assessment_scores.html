@@ -5,12 +5,12 @@
 <p>Enter marks per pupil per question. Leave blank for zero.</p>
 
 <form method="post">
-  <table>
+  <table class="sortable">
     <thead>
       <tr>
-        <th>Pupil</th>
+        <th class="sortable" data-sort="text">Pupil</th>
         {% for q in questions %}
-          <th>Q{{ q.number }}<br><small>/ {{ q.max_mark }}</small></th>
+          <th class="sortable" data-sort="text">Q{{ q.number }}<br><small>/ {{ q.max_mark }}</small></th>
         {% endfor %}
       </tr>
     </thead>

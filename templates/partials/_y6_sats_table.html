@@ -49,13 +49,13 @@
 {% endif %}
 
 <div class="table-scroll">
-  <table class="y6-home-table table-sticky">
+  <table class="y6-home-table table-sticky sortable">
     <thead>
       <tr>
-        <th rowspan="2">Name</th>
-        {% if filters.subject in ['all', 'maths'] %}<th colspan="9">Maths</th>{% endif %}
-        {% if filters.subject in ['all', 'reading'] %}<th colspan="9">Reading</th>{% endif %}
-        {% if filters.subject in ['all', 'spag'] %}<th colspan="9">SPaG</th>{% endif %}
+        <th class="sortable" data-sort="text" rowspan="2">Name</th>
+        {% if filters.subject in ['all', 'maths'] %}<th class="sortable" data-sort="text" colspan="9">Maths</th>{% endif %}
+        {% if filters.subject in ['all', 'reading'] %}<th class="sortable" data-sort="text" colspan="9">Reading</th>{% endif %}
+        {% if filters.subject in ['all', 'spag'] %}<th class="sortable" data-sort="text" colspan="9">SPaG</th>{% endif %}
       </tr>
       <tr>
         {% if filters.subject in ['all', 'maths'] %}{{ subhead() }}{% endif %}

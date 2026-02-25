@@ -5,8 +5,8 @@
 <p>Class: {{ assessment.klass.name }} | Year: {{ assessment.academic_year.label }} | Term: {{ assessment.term }} | Subject: {{ assessment.subject|upper }} | Paper: {{ assessment.paper }}</p>
 
 <form method="post">
-  <table class="table-sticky">
-    <thead><tr><th>#</th><th>Max mark</th><th>Question type</th><th>Strand</th><th>Notes</th></tr></thead>
+  <table class="table-sticky sortable">
+    <thead><tr><th class="sortable" data-sort="number">#</th><th class="sortable" data-sort="number">Max mark</th><th class="sortable" data-sort="text">Question type</th><th class="sortable" data-sort="text">Strand</th><th class="sortable" data-sort="text">Notes</th></tr></thead>
     <tbody id="qbody">
       {% for q in questions %}
         <tr>

@@ -56,11 +56,11 @@
 </section>
 
 <form method="post">
-  <table>
+  <table class="sortable">
     <thead>
       <tr>
-        <th>When</th><th>Class</th><th>Pupil</th><th>Year</th><th>Term</th><th>Paper</th><th>%</th>
-        <th>Status</th><th>Focus</th><th>Teacher note</th><th>Support plan</th>
+        <th class="sortable" data-sort="text">When</th><th class="sortable" data-sort="text">Class</th><th class="sortable" data-sort="text">Pupil</th><th class="sortable" data-sort="text">Year</th><th class="sortable" data-sort="text">Term</th><th class="sortable" data-sort="text">Paper</th><th class="sortable" data-sort="number">%</th>
+        <th class="sortable" data-sort="text">Status</th><th class="sortable" data-sort="text">Focus</th><th class="sortable" data-sort="text">Teacher note</th><th class="sortable" data-sort="text">Support plan</th>
       </tr>
     </thead>
     <tbody>
@@ -72,7 +72,7 @@
         <td>{{ it.year.label }}</td>
         <td>{{ it.term }}</td>
         <td>{{ it.paper }}</td>
-        <td>{{ it.pct if it.pct is not none else '' }}</td>
+        <td data-value="{{ it.pct if it.pct is not none else '' }}">{{ it.pct if it.pct is not none else '' }}</td>
         <td>
           <select name="status_{{ it.id }}">
             <option value="proposed" {{ 'selected' if it.status=='proposed' else '' }}>proposed</option>

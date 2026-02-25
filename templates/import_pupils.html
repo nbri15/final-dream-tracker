@@ -20,8 +20,8 @@
 
 {% if preview_rows %}
   <h2>Preview</h2>
-  <table>
-    <thead><tr><th>#</th><th>Status</th><th>Message</th><th>Name</th></tr></thead>
+  <table class="sortable">
+    <thead><tr><th class="sortable" data-sort="number">#</th><th class="sortable" data-sort="text">Status</th><th class="sortable" data-sort="text">Message</th><th class="sortable" data-sort="text">Name</th></tr></thead>
     <tbody>
       {% for r in preview_rows %}
         <tr>

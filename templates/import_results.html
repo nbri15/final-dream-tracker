@@ -29,12 +29,12 @@
 
 {% if preview_rows %}
   <h2>Preview</h2>
-  <table>
+  <table class="sortable">
     <thead>
       <tr>
-        <th>#</th><th>Status</th><th>Action</th>
-        <th>Name</th><th>Gender</th><th>PP</th><th>LAPS</th><th>Service</th>
-        <th>Score A</th><th>Score B</th><th>Band</th><th>Note</th>
+        <th class="sortable" data-sort="number">#</th><th class="sortable" data-sort="text">Status</th><th class="sortable" data-sort="text">Action</th>
+        <th class="sortable" data-sort="text">Name</th><th class="sortable" data-sort="text">Gender</th><th class="sortable" data-sort="text">PP</th><th class="sortable" data-sort="text">LAPS</th><th class="sortable" data-sort="text">Service</th>
+        <th class="sortable" data-sort="number">Score A</th><th class="sortable" data-sort="number">Score B</th><th class="sortable" data-sort="text">Band</th><th class="sortable" data-sort="text">Note</th>
       </tr>
     </thead>
     <tbody>

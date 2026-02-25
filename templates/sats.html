@@ -34,12 +34,12 @@
 
 <section>
   <div class="table-scroll">
-  <table>
+  <table class="sortable">
     <thead>
       <tr>
-        <th>Pupil</th>
+        <th class="sortable" data-sort="text">Pupil</th>
         {% for c in columns %}
-          <th>
+          <th class="sortable" data-sort="text">
             <input
               class="header-input"
               value="{{ c.header or '' }}"

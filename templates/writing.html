@@ -42,13 +42,13 @@
 
 <section>
   <div class="table-scroll">
-  <table>
+  <table class="sortable">
     <thead>
       <tr>
-        <th>No.</th>
-        <th>Name</th>
+        <th class="sortable" data-sort="number">No.</th>
+        <th class="sortable" data-sort="text">Name</th>
         {% if is_admin and (selected_class_id == 'all') %}
-          <th>Class</th>
+          <th class="sortable" data-sort="text">Class</th>
         {% endif %}
         <th class="term-divider">Autumn</th>
         <th class="term-divider">Spring</th>
