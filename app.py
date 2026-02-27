@@ -881,9 +881,10 @@ def create_app():
     @app.context_processor
     def inject_sats_nav():
         def sort_link(field):
-            args = request.args.to_dict(flat=True)
-            current_sort = (args.get("sort", "number") or "number").strip().lower()
-            current_dir = (args.get("dir", "asc") or "asc").strip().lower()
+            route_args = dict(request.view_args or {})
+            query_args = request.args.to_dict(flat=True)
+            current_sort = (query_args.get("sort", "number") or "number").strip().lower()
+            current_dir = (query_args.get("dir", "asc") or "asc").strip().lower()
             if current_dir not in {"asc", "desc"}:
                 current_dir = "asc"
 
@@ -891,12 +892,13 @@ def create_app():
             if safe_field not in DASHBOARD_SORT_KEYS:
                 safe_field = "number"
 
-            args["sort"] = safe_field
+            values = {**route_args, **query_args}
+            values["sort"] = safe_field
             if current_sort == safe_field:
-                args["dir"] = "desc" if current_dir == "asc" else "asc"
+                values["dir"] = "desc" if current_dir == "asc" else "asc"
             else:
-                args["dir"] = "asc"
-            return url_for(request.endpoint, **args)
+                values["dir"] = "asc"
+            return url_for(request.endpoint, **values)
 
         active_sort = (request.args.get("sort", "number") or "number").strip().lower()
         if active_sort not in DASHBOARD_SORT_KEYS:
