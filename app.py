@@ -2629,7 +2629,8 @@ def create_app():
             return redirect(url_for("dashboard", subject="maths"))
         form = LoginForm()
         if form.validate_on_submit():
-            user = Teacher.query.filter_by(username=form.username.data.strip()).first()
+            username = form.username.data.strip()
+            user = Teacher.query.filter(func.lower(Teacher.username) == username.lower()).first()
             if user and user.check_password(form.password.data):
                 if not getattr(user, "is_active", True):
                     flash("This account is disabled.", "error")
