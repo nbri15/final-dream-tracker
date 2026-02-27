@@ -229,9 +229,9 @@
             <th class="term-divider">{{ paper_labels[0] }}</th><th class="sortable" data-sort="text">{{ paper_labels[1] }}</th><th class="sortable" data-sort="number">Combined</th>
             <th class="term-divider">{{ paper_labels[0] }}</th><th class="sortable" data-sort="text">{{ paper_labels[1] }}</th><th class="sortable" data-sort="number">Combined</th>
           {% else %}
-            <th class="term-divider">{{ sort_control(paper_labels[0], "autumn_a", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control(paper_labels[1], "autumn_b", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control("Combined", "autumn_combined", sort_key, sort_dir) }}</th>
-            <th class="term-divider">{{ sort_control(paper_labels[0], "spring_a", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control(paper_labels[1], "spring_b", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control("Combined", "spring_combined", sort_key, sort_dir) }}</th>
-            <th class="term-divider">{{ sort_control(paper_labels[0], "summer_a", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control(paper_labels[1], "summer_b", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control("Combined", "summer_combined", sort_key, sort_dir) }}</th>
+            <th class="term-divider">{{ sort_control(paper_labels[0], "autumn_a", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control(paper_labels[1], "autumn_b", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control("Autumn Total", "autumn_total", sort_key, sort_dir) }}</th>
+            <th class="term-divider">{{ sort_control(paper_labels[0], "spring_a", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control(paper_labels[1], "spring_b", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control("Spring Total", "spring_total", sort_key, sort_dir) }}</th>
+            <th class="term-divider">{{ sort_control(paper_labels[0], "summer_a", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control(paper_labels[1], "summer_b", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control("Summer Total", "summer_total", sort_key, sort_dir) }}</th>
           {% endif %}
         </tr>
 
