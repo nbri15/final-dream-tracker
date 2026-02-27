@@ -872,6 +872,7 @@ def create_app():
 
     DASHBOARD_SORT_KEYS = {
         "number", "name", "gender", "pp", "laps", "service",
+        "autumn_total", "spring_total", "summer_total",
         "autumn_a", "autumn_b", "autumn_combined",
         "spring_a", "spring_b", "spring_combined",
         "summer_a", "summer_b", "summer_combined",
@@ -881,8 +882,10 @@ def create_app():
     def inject_sats_nav():
         def sort_link(field):
             args = request.args.to_dict(flat=True)
-            current_sort = (args.get("sort") or "number").strip().lower()
-            current_dir = (args.get("dir") or "asc").strip().lower()
+            current_sort = (args.get("sort", "number") or "number").strip().lower()
+            current_dir = (args.get("dir", "asc") or "asc").strip().lower()
+            if current_dir not in {"asc", "desc"}:
+                current_dir = "asc"
 
             safe_field = (field or "").strip().lower()
             if safe_field not in DASHBOARD_SORT_KEYS:
@@ -895,8 +898,21 @@ def create_app():
                 args["dir"] = "asc"
             return url_for(request.endpoint, **args)
 
+        active_sort = (request.args.get("sort", "number") or "number").strip().lower()
+        if active_sort not in DASHBOARD_SORT_KEYS:
+            active_sort = "number"
+        active_dir = (request.args.get("dir", "asc") or "asc").strip().lower()
+        if active_dir not in {"asc", "desc"}:
+            active_dir = "asc"
+
         if not getattr(current_user, "is_authenticated", False):
-            return {"sats_nav": None, "y6_nav": None, "sort_link": sort_link}
+            return {
+                "sats_nav": None,
+                "y6_nav": None,
+                "sort_link": sort_link,
+                "current_sort": active_sort,
+                "current_dir": active_dir,
+            }
 
         year = parse_year_id_or_current(request.args.get("year"))
         class_sel = request.args.get("class")
@@ -915,7 +931,13 @@ def create_app():
         if klass and (not klass.is_archived) and (not klass.is_archive) and klass.year_group == 6:
             sats_nav = {"class_id": klass.id, "year_id": (year.id if year else None)}
 
-        return {"sats_nav": sats_nav, "y6_nav": sats_nav, "sort_link": sort_link}
+        return {
+            "sats_nav": sats_nav,
+            "y6_nav": sats_nav,
+            "sort_link": sort_link,
+            "current_sort": active_sort,
+            "current_dir": active_dir,
+        }
 
 
     WRITING_BANDS = ("working_towards", "working_at", "exceeding")
@@ -1879,8 +1901,8 @@ def create_app():
         term = (request.args.get("term") or "Autumn").strip()
         if term not in TERMS:
             term = "Autumn"
-        sort = (request.args.get("sort") or "number").strip().lower()
-        direction = (request.args.get("dir") or "asc").strip().lower()
+        sort = (request.args.get("sort", "number") or "number").strip().lower()
+        direction = (request.args.get("dir", "asc") or "asc").strip().lower()
         if sort not in DASHBOARD_SORT_KEYS:
             sort = "number"
         if direction not in {"asc", "desc"}:
@@ -2059,66 +2081,81 @@ def create_app():
                         r._score_a, r._score_b = get_result_scores(r, subject)
                         results_by_pupil[r.pupil_id][r.term] = r
 
+        def term_total(a, b):
+            if a is None or b is None:
+                return None
+            return float(a) + float(b)
+
         table_rows = []
         for p in pupils:
+            rA = results_by_pupil.get(p.id, {}).get("Autumn")
+            rS = results_by_pupil.get(p.id, {}).get("Spring")
+            rU = results_by_pupil.get(p.id, {}).get("Summer")
+            aA = rA._score_a if rA else None
+            bA = rA._score_b if rA else None
+            aS = rS._score_a if rS else None
+            bS = rS._score_b if rS else None
+            aU = rU._score_a if rU else None
+            bU = rU._score_b if rU else None
             table_rows.append({
                 "pupil": p,
-                "rA": results_by_pupil.get(p.id, {}).get("Autumn"),
-                "rS": results_by_pupil.get(p.id, {}).get("Spring"),
-                "rU": results_by_pupil.get(p.id, {}).get("Summer"),
+                "rA": rA,
+                "rS": rS,
+                "rU": rU,
                 "wA": writing_by_pupil.get(p.id, {}).get("Autumn"),
                 "wS": writing_by_pupil.get(p.id, {}).get("Spring"),
                 "wU": writing_by_pupil.get(p.id, {}).get("Summer"),
+                "autumn_a": aA,
+                "autumn_b": bA,
+                "autumn_total": term_total(aA, bA),
+                "autumn_combined": (rA.combined_pct if rA else None),
+                "spring_a": aS,
+                "spring_b": bS,
+                "spring_total": term_total(aS, bS),
+                "spring_combined": (rS.combined_pct if rS else None),
+                "summer_a": aU,
+                "summer_b": bU,
+                "summer_total": term_total(aU, bU),
+                "summer_combined": (rU.combined_pct if rU else None),
             })
 
-        def score_value(row, season, field):
-            result = row.get(f"r{season}")
-            if not result:
+        def row_sort_value(row):
+            p = row["pupil"]
+            values = {
+                "number": p.number,
+                "name": (p.name or "").lower(),
+                "gender": (p.gender or "").lower(),
+                "pp": bool(p.pupil_premium),
+                "laps": bool(p.laps),
+                "service": bool(p.service_child),
+                "autumn_total": row["autumn_total"],
+                "spring_total": row["spring_total"],
+                "summer_total": row["summer_total"],
+                "autumn_a": row["autumn_a"],
+                "autumn_b": row["autumn_b"],
+                "autumn_combined": row["autumn_combined"],
+                "spring_a": row["spring_a"],
+                "spring_b": row["spring_b"],
+                "spring_combined": row["spring_combined"],
+                "summer_a": row["summer_a"],
+                "summer_b": row["summer_b"],
+                "summer_combined": row["summer_combined"],
+            }
+
+            if subject == "writing" and sort not in {"number", "name", "gender", "pp", "laps", "service"}:
                 return None
-            if field == "a":
-                return result._score_a
-            if field == "b":
-                return result._score_b
-            if field == "combined":
-                return result.combined_pct
-            return None
+            return values.get(sort)
 
         def sort_key_for_row(row):
             p = row["pupil"]
-            if sort == "name":
-                return (0, (p.name or "").lower())
-            if sort == "number":
-                if p.number is None:
-                    return (1, 0)
-                return (0, p.number)
-            if sort == "gender":
-                return (0, (p.gender or "").lower(), (p.name or "").lower())
-            if sort == "pp":
-                return (0, 1 if p.pupil_premium else 0, (p.name or "").lower())
-            if sort == "laps":
-                return (0, 1 if p.laps else 0, (p.name or "").lower())
-            if sort == "service":
-                return (0, 1 if p.service_child else 0, (p.name or "").lower())
-
-            score_fields = {
-                "autumn_a": ("A", "a"), "autumn_b": ("A", "b"), "autumn_combined": ("A", "combined"),
-                "spring_a": ("S", "a"), "spring_b": ("S", "b"), "spring_combined": ("S", "combined"),
-                "summer_a": ("U", "a"), "summer_b": ("U", "b"), "summer_combined": ("U", "combined"),
-            }
-            if sort in score_fields and subject != "writing":
-                season, field = score_fields[sort]
-                val = score_value(row, season, field)
-                if val is None:
-                    return (1, 0, (p.name or "").lower())
-                return (0, val, (p.name or "").lower())
-
-            return (0, (p.name or "").lower())
+            val = row_sort_value(row)
+            return (val is None, val, (p.name or "").lower())
 
         if sort in DASHBOARD_SORT_KEYS:
             table_rows.sort(key=sort_key_for_row)
             if direction == "desc":
-                present = [r for r in table_rows if sort_key_for_row(r)[0] == 0]
-                missing = [r for r in table_rows if sort_key_for_row(r)[0] == 1]
+                present = [r for r in table_rows if row_sort_value(r) is not None]
+                missing = [r for r in table_rows if row_sort_value(r) is None]
                 present.reverse()
                 table_rows = present + missing
 
