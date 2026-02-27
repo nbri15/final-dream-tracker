@@ -870,12 +870,29 @@ def create_app():
                     ensure_questions_total_marks(a.id, required_total)
         db.session.commit()
 
+    DASHBOARD_SORT_KEYS = {
+        "number", "name", "gender", "pp", "laps", "service",
+        "autumn_a", "autumn_b", "autumn_combined",
+        "spring_a", "spring_b", "spring_combined",
+        "summer_a", "summer_b", "summer_combined",
+    }
+
     @app.context_processor
     def inject_sats_nav():
-        def sort_link(sort_key, direction="asc"):
+        def sort_link(field):
             args = request.args.to_dict(flat=True)
-            args["sort"] = sort_key
-            args["dir"] = direction
+            current_sort = (args.get("sort") or "number").strip().lower()
+            current_dir = (args.get("dir") or "asc").strip().lower()
+
+            safe_field = (field or "").strip().lower()
+            if safe_field not in DASHBOARD_SORT_KEYS:
+                safe_field = "number"
+
+            args["sort"] = safe_field
+            if current_sort == safe_field:
+                args["dir"] = "desc" if current_dir == "asc" else "asc"
+            else:
+                args["dir"] = "asc"
             return url_for(request.endpoint, **args)
 
         if not getattr(current_user, "is_authenticated", False):
@@ -1863,16 +1880,10 @@ def create_app():
         term = (request.args.get("term") or "Autumn").strip()
         if term not in TERMS:
             term = "Autumn"
-        sort = (request.args.get("sort") or "name").strip().lower()
+        sort = (request.args.get("sort") or "number").strip().lower()
         direction = (request.args.get("dir") or "asc").strip().lower()
-        valid_sorts = {
-            "name", "number", "gender", "pp", "laps", "service",
-            "autumn_a", "autumn_b", "autumn_combined",
-            "spring_a", "spring_b", "spring_combined",
-            "summer_a", "summer_b", "summer_combined",
-        }
-        if sort not in valid_sorts:
-            sort = "name"
+        if sort not in DASHBOARD_SORT_KEYS:
+            sort = "number"
         if direction not in {"asc", "desc"}:
             direction = "asc"
 
@@ -2105,7 +2116,7 @@ def create_app():
 
             return (0, (p.name or "").lower())
 
-        if sort in valid_sorts:
+        if sort in DASHBOARD_SORT_KEYS:
             table_rows.sort(key=sort_key_for_row)
             if direction == "desc":
                 present = [r for r in table_rows if sort_key_for_row(r)[0] == 0]
@@ -2260,6 +2271,8 @@ def create_app():
             overview_chart=overview_chart,
             sort=sort,
             direction=direction,
+            sort_key=sort,
+            sort_dir=direction,
             table_rows=table_rows,
         )
 
