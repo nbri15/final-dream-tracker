@@ -1480,7 +1480,6 @@ def create_app():
         else:
             bands.update(consume(subject_key, pupil_ids))
 
-        total = bands["WT"] + bands["WA"] + bands["WAplus"]
         on_track["yes"] = bands["WA"] + bands["WAplus"]
         on_track["no"] = bands["WT"]
 
@@ -2009,7 +2008,6 @@ def create_app():
             else:
                 q = Pupil.query.filter(Pupil.class_id == klass.id)
 
-        include_pupil_ids = parse_id_csv(request.args.get("pupil_ids"))
         if include_pupil_ids:
             q = q.filter(Pupil.id.in_(include_pupil_ids))
 
@@ -4395,7 +4393,6 @@ def create_app():
 
         gender = (request.args.get("gender") or "").upper()
         pp = request.args.get("pp", "")
-        include_pupil_ids = parse_id_csv(request.args.get("pupil_ids"))
         laps = request.args.get("laps", "")
         svc = request.args.get("svc", "")
 
@@ -4652,8 +4649,6 @@ def create_app():
                 SchoolClass.is_archive.is_(False),
             )
         pupils = pupil_q.order_by(Pupil.name.asc()).all()
-        pupil_ids = [p.id for p in pupils]
-
         active_q = Intervention.query.filter(
             Intervention.academic_year_id == year.id,
             Intervention.status == "active"
