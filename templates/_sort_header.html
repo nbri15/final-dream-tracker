@@ -1,10 +1,7 @@
-{% macro sort_control(label, sort_key, sort, direction, asc_label='A→Z', desc_label='Z→A') -%}
-  <div class="sort-header">
+{% macro sort_control(label, field, sort_key, sort_dir) -%}
+  {% set active = (sort_key == field) %}
+  <a class="sort-link" href="{{ sort_link(field) }}">
     <span>{{ label }}</span>
-    <select class="sort-select" aria-label="Sort {{ label }}" onchange="if(this.value){window.location=this.value;}">
-      <option value="">⇅</option>
-      <option value="{{ sort_link(sort_key, 'asc') }}" {{ 'selected' if sort == sort_key and direction == 'asc' else '' }}>{{ asc_label }}</option>
-      <option value="{{ sort_link(sort_key, 'desc') }}" {{ 'selected' if sort == sort_key and direction == 'desc' else '' }}>{{ desc_label }}</option>
-    </select>
-  </div>
+    {% if active %}<span aria-hidden="true">{{ '▲' if sort_dir == 'asc' else '▼' }}</span>{% endif %}
+  </a>
 {%- endmacro %}
