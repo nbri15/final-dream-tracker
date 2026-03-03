@@ -223,6 +223,24 @@ class PupilProfile(db.Model):
     pupil = db.relationship("Pupil", back_populates="profile")
 
 
+
+
+class TestPaper(db.Model):
+    __tablename__ = "test_papers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    year_group = db.Column(db.Integer, nullable=False, index=True)
+    term = db.Column(db.String(10), nullable=False, index=True)
+    subject = db.Column(db.String(20), nullable=False, index=True)
+    title = db.Column(db.String(200), nullable=False)
+    paper_type = db.Column(db.String(20), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    stored_filename = db.Column(db.String(255), nullable=False, unique=True)
+    uploaded_by_teacher_id = db.Column(db.Integer, db.ForeignKey("teachers.id"), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    uploader = db.relationship("Teacher")
+
 class TermConfig(db.Model):
     __tablename__ = "term_configs"
     id = db.Column(db.Integer, primary_key=True)

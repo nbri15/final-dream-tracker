@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+{% block title %}Test Papers — Dream Tracker{% endblock %}
+{% block content %}
+<h1>Test Papers</h1>
+
+<section class="card">
+  <form method="get" class="inline">
+    <label>Year group<br>
+      <select name="year_group">
+        <option value="">All</option>
+        {% for yg in year_groups %}
+          <option value="{{ yg }}" {{ 'selected' if selected_year_group == yg else '' }}>Year {{ yg }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Term<br>
+      <select name="term">
+        <option value="">All</option>
+        {% for t in terms %}
+          <option value="{{ t }}" {{ 'selected' if selected_term == t else '' }}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Subject<br>
+      <select name="subject">
+        <option value="">All</option>
+        {% for subj in ['maths','reading','spag','writing'] %}
+          <option value="{{ subj }}" {{ 'selected' if selected_subject == subj else '' }}>{{ subj|upper if subj == 'spag' else subj|title }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit" class="button">Filter</button>
+  </form>
+</section>
+
+<section class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>Year</th><th>Term</th><th>Subject</th><th>Title</th><th>Type</th><th>Uploaded</th><th>Download</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in papers %}
+        <tr>
+          <td>Year {{ p.year_group }}</td>
+          <td>{{ p.term }}</td>
+          <td>{{ 'SPaG' if p.subject == 'spag' else p.subject|title }}</td>
+          <td>{{ p.title }}</td>
+          <td>{{ p.paper_type }}</td>
+          <td>{{ p.created_at.strftime('%Y-%m-%d') if p.created_at else '' }}</td>
+          <td><a class="button" href="{{ url_for('download_paper', paper_id=p.id) }}">Download PDF</a></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7">No papers found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

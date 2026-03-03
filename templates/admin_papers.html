@@ -1,0 +1,75 @@
+{% extends "layout.html" %}
+{% block title %}Manage Test Papers — Dream Tracker{% endblock %}
+{% block content %}
+<h1>Manage Test Papers</h1>
+
+<section class="card">
+  <h2>Upload PDF</h2>
+  <form method="post" enctype="multipart/form-data" class="inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Year group<br>
+      <select name="year_group" required>
+        {% for yg in year_groups %}
+          <option value="{{ yg }}">Year {{ yg }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Term<br>
+      <select name="term" required>
+        {% for t in terms %}
+          <option value="{{ t }}">{{ t }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Subject<br>
+      <select name="subject" required>
+        <option value="maths">Maths</option>
+        <option value="reading">Reading</option>
+        <option value="spag">SPaG</option>
+        <option value="writing">Writing</option>
+      </select>
+    </label>
+    <label>Title<br><input type="text" name="title" maxlength="200" required></label>
+    <label>Type<br>
+      <select name="paper_type" required>
+        <option value="Paper">Paper</option>
+        <option value="Mark scheme">Mark scheme</option>
+      </select>
+    </label>
+    <label>PDF file<br><input type="file" name="paper_file" accept="application/pdf,.pdf" required></label>
+    <button type="submit" class="button">Upload paper</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Uploaded papers</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Year</th><th>Term</th><th>Subject</th><th>Title</th><th>Type</th><th>File</th><th>Download</th><th>Delete</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in papers %}
+        <tr>
+          <td>Year {{ p.year_group }}</td>
+          <td>{{ p.term }}</td>
+          <td>{{ 'SPaG' if p.subject == 'spag' else p.subject|title }}</td>
+          <td>{{ p.title }}</td>
+          <td>{{ p.paper_type }}</td>
+          <td>{{ p.original_filename }}</td>
+          <td><a class="button" href="{{ url_for('download_paper', paper_id=p.id) }}">Download</a></td>
+          <td>
+            <form method="post" action="{{ url_for('delete_paper', paper_id=p.id) }}" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="button">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8">No papers uploaded yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
