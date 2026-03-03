@@ -13,6 +13,9 @@
 
 <form method="post" enctype="multipart/form-data">
   {{ form.csrf_token }}
+  <div>
+    <a id="download-template-btn" class="button" href="{{ url_for('import_results_template_csv', subject=selected_subject, class_id=template_class_id) }}">Download template CSV</a>
+  </div>
   <label>CSV file<br>{{ form.csv_file() }}</label>
   <label>Academic year<br>{{ form.academic_year() }}</label>
   <label>Term<br>{{ form.term() }}</label>
@@ -72,9 +75,24 @@
     const v = (subjectEl && subjectEl.value) || "maths";
     if (helpEl) helpEl.textContent = helpMap[v] || helpMap.maths;
   }
+
+  const templateBtn = document.getElementById("download-template-btn");
+  const classEl = document.getElementById("class_id");
+  function refreshTemplateHref() {
+    if (!templateBtn) return;
+    const s = (subjectEl && subjectEl.value) || "maths";
+    const c = classEl && classEl.value ? `&class_id=${encodeURIComponent(classEl.value)}` : "";
+    templateBtn.href = `{{ url_for('import_results_template_csv') }}?subject=${encodeURIComponent(s)}${c}`;
+  }
   if (subjectEl) {
     subjectEl.addEventListener("change", refreshHelp);
+    subjectEl.addEventListener("change", refreshTemplateHref);
     refreshHelp();
+    refreshTemplateHref();
+  }
+  if (classEl) {
+    classEl.addEventListener("change", refreshTemplateHref);
+    refreshTemplateHref();
   }
 </script>
 {% endblock %}

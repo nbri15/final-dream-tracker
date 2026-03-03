@@ -11,7 +11,7 @@ from models import (
     db, SchoolClass, Teacher, TeacherClass, Pupil, Result, WritingResult, TermConfig, AcademicYear,
     Assessment, AssessmentQuestion, PupilQuestionScore, Intervention,
     SatsHeader, SatsScore, PupilClassHistory, PaperTemplate, PaperTemplateQuestion,
-    PupilReportNote, PupilProfile
+    PupilReportNote, PupilProfile, TestPaper
 )
 from forms import (
     LoginForm, PupilForm, ResultForm, TermSettingsForm,
@@ -24,7 +24,11 @@ import csv
 import re
 import json
 from datetime import datetime, date
+from pathlib import Path
+import os
+import uuid
 from urllib.parse import urlencode
+from werkzeug.utils import secure_filename
 
 from flask import jsonify, abort, make_response
 
@@ -37,6 +41,8 @@ except Exception:  # optional dependency in some local environments
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.config.setdefault("TEST_PAPERS_UPLOAD_DIR", os.path.join(app.instance_path, "uploads", "test_papers"))
+    os.makedirs(app.config["TEST_PAPERS_UPLOAD_DIR"], exist_ok=True)
 
     # ---- DB & Login setup
     db.init_app(app)
@@ -363,6 +369,26 @@ def create_app():
         ensure_column("interventions", "post_result", "ALTER TABLE interventions ADD COLUMN post_result VARCHAR(120)")
         ensure_column("interventions", "review_due_date", "ALTER TABLE interventions ADD COLUMN review_due_date DATE")
 
+
+    def ensure_test_papers_table():
+        with db.engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS test_papers (
+                    id INTEGER PRIMARY KEY,
+                    year_group INTEGER NOT NULL,
+                    term VARCHAR(10) NOT NULL,
+                    subject VARCHAR(20) NOT NULL,
+                    title VARCHAR(200) NOT NULL,
+                    paper_type VARCHAR(20) NOT NULL,
+                    original_filename VARCHAR(255) NOT NULL,
+                    stored_filename VARCHAR(255) NOT NULL UNIQUE,
+                    uploaded_by_teacher_id INTEGER,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(uploaded_by_teacher_id) REFERENCES teachers (id)
+                )
+            """))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_test_papers_lookup ON test_papers (year_group, term, subject)"))
+
     def next_year_label_from(label: str) -> str:
         """Convert labels like '2025/26' into '2026/27'."""
         raw = (label or "").strip()
@@ -413,6 +439,13 @@ def create_app():
             ids.add(klass.id)
         return sorted(ids)
 
+    def teacher_year_groups(user):
+        class_ids = user_class_ids(user)
+        if not class_ids:
+            return []
+        rows = SchoolClass.query.filter(SchoolClass.id.in_(class_ids)).all()
+        return sorted({c.year_group for c in rows if c and c.year_group is not None})
+
     def user_has_class_access(user, class_id):
         if not user or not class_id:
             return False
@@ -449,6 +482,26 @@ def create_app():
             return
         if not user_has_class_access(current_user, class_id):
             abort(403)
+
+    def class_for_template_request(class_id_value):
+        if class_id_value in (None, "", "None"):
+            return None
+        try:
+            class_id_int = int(class_id_value)
+        except (TypeError, ValueError):
+            abort(400)
+        if not is_admin_user() and not user_has_class_access(current_user, class_id_int):
+            abort(403)
+        return SchoolClass.query.get_or_404(class_id_int)
+
+    def csv_template_headers(subject: str):
+        by_subject = {
+            "maths": ["Name", "Gender", "PP", "LAPS", "Service Child", "Arithmetic", "Reasoning", "Note"],
+            "reading": ["Name", "Gender", "PP", "LAPS", "Service Child", "Reading P1", "Reading P2", "Note"],
+            "spag": ["Name", "Gender", "PP", "LAPS", "Service Child", "Spelling", "Grammar", "Note"],
+            "writing": ["Name", "Gender", "PP", "LAPS", "Service Child", "Writing Band", "Note"],
+        }
+        return by_subject.get(subject, by_subject["maths"])
 
     def get_term_max_for_paper(class_id: int, academic_year_id: int, term: str, subject: str, paper: str) -> float:
         subject = normalize_subject(subject)
@@ -1836,6 +1889,7 @@ def create_app():
         ensure_paper_template_tables_and_columns()
         ensure_pupil_profiles_table()
         ensure_pupil_report_notes_table()
+        ensure_test_papers_table()
         ensure_default_year()
         get_or_create_archive_class()
 
@@ -3411,6 +3465,48 @@ def create_app():
         years = AcademicYear.query.order_by(AcademicYear.label.asc()).all()
         return render_template("admin_years.html", form=form, set_form=set_form, years=years)
 
+    # ---- CSV import templates
+
+    @app.route("/import/results/template.csv")
+    @login_required
+    def import_results_template_csv():
+        subject = (request.args.get("subject") or "maths").strip().lower()
+        if subject not in ("maths", "reading", "spag", "writing"):
+            subject = "maths"
+
+        klass = class_for_template_request(request.args.get("class_id"))
+        headers = csv_template_headers(subject)
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(headers)
+
+        if klass:
+            pupils = Pupil.query.filter_by(class_id=klass.id).order_by(Pupil.name.asc()).all()
+            for pupil in pupils:
+                base = [
+                    pupil.name,
+                    pupil.gender or "",
+                    "Y" if pupil.pupil_premium else "",
+                    "Y" if pupil.laps else "",
+                    "Y" if pupil.service_child else "",
+                ]
+                score_cols = 2 if subject in ("maths", "reading", "spag") else 1
+                writer.writerow(base + ([""] * score_cols) + [""])
+        else:
+            score_cols = 2 if subject in ("maths", "reading", "spag") else 1
+            writer.writerow([""] * (5 + score_cols + 1))
+
+        csv_bytes = io.BytesIO(output.getvalue().encode("utf-8"))
+        class_label = klass.name.lower().replace(" ", "-") if klass else "blank"
+        filename = f"{subject}-results-template-{class_label}.csv"
+        return send_file(
+            csv_bytes,
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name=filename,
+        )
+
     # ---- CSV import: Results (combined pupils + optional scores)
 
     @app.route("/import/results", methods=["GET", "POST"])
@@ -3444,8 +3540,13 @@ def create_app():
             "pupil_premium": ["pp", "pupil_premium", "pupilpremium", "pupil premium", "premium"],
             "laps": ["laps", "lap", "lower_attainers", "lowerattainers"],
             "service_child": ["service", "service_child", "servicechild", "service child"],
-            "arithmetic": ["score_a", "scorea", "arithmetic", "paper_a", "papera"],
-            "reasoning": ["score_b", "scoreb", "reasoning", "paper_b", "paperb"],
+            "arithmetic": ["score_a", "scorea", "arithmetic", "paper_a", "papera", "maths_arithmetic"],
+            "reasoning": ["score_b", "scoreb", "reasoning", "paper_b", "paperb", "maths_reasoning"],
+            "reading_p1": ["reading_p1", "reading p1", "reading paper 1", "paper 1", "p1"],
+            "reading_p2": ["reading_p2", "reading p2", "reading paper 2", "paper 2", "p2"],
+            "spelling": ["spelling", "spag spelling", "spelling paper"],
+            "grammar": ["grammar", "spag grammar", "grammar paper"],
+            "writing_band": ["writing_band", "writing band", "band", "writing", "teacher assessment"],
             "note": ["note", "notes", "comment", "comments"],
         }
         normalized_alias_map = {
@@ -3523,16 +3624,17 @@ def create_app():
                         score_a, score_b = parse_float(r2.get("arithmetic")), parse_float(r2.get("reasoning"))
                         band = None
                     elif subject == "reading":
-                        score_a, score_b = parse_float(r.get("reading_p1")), parse_float(r.get("reading_p2"))
+                        score_a, score_b = parse_float(r2.get("reading_p1")), parse_float(r2.get("reading_p2"))
                         band = None
                     elif subject == "spag":
-                        score_a, score_b = parse_float(r.get("spelling")), parse_float(r.get("grammar"))
+                        score_a, score_b = parse_float(r2.get("spelling")), parse_float(r2.get("grammar"))
                         band = None
                     else:
                         score_a = score_b = None
-                        band = parse_writing_band(r.get("band") or r.get("writing_band"))
-                        if (r.get("band") or r.get("writing_band")) and not band:
-                            raise ValueError("Invalid writing band")
+                        raw_band = r2.get("writing_band")
+                        band = parse_writing_band(raw_band)
+                        if raw_band and not band:
+                            raise ValueError(f"Invalid writing band '{raw_band}'. Use working_towards/wts, working_at/ot, or exceeding/gds.")
                 except ValueError:
                     rows.append({"row": i, "status": "error", "action": "bad score", "name": name, "gender": gender, "pp": pp, "laps": laps, "svc": svc, "score_a": None, "score_b": None, "note": note})
                     continue
@@ -3599,9 +3701,9 @@ def create_app():
                 flash("Saved.", "success")
                 return redirect(url_for("dashboard", subject=subject, year=year_id, **{"class": class_id}))
 
-            return render_template("import_results.html", form=form, preview_rows=preview_rows, selected_subject=subject)
+            return render_template("import_results.html", form=form, preview_rows=preview_rows, selected_subject=subject, template_class_id=(form.class_id.data if current_user.is_admin else primary_class_id_for(current_user)))
 
-        return render_template("import_results.html", form=form, preview_rows=preview_rows, selected_subject=subject)
+        return render_template("import_results.html", form=form, preview_rows=preview_rows, selected_subject=subject, template_class_id=(form.class_id.data if current_user.is_admin else primary_class_id_for(current_user)))
 
     # ---- GAP Analysis
 
@@ -5022,6 +5124,146 @@ def create_app():
             next_year_label=next_year_label,
             missing_year_groups=missing_year_groups,
         )
+
+
+    # ---- Test papers library
+
+    @app.route("/papers")
+    @login_required
+    def papers():
+        q = TestPaper.query
+        if not is_admin_user():
+            allowed_years = teacher_year_groups(current_user)
+            if not allowed_years:
+                q = q.filter(text("1=0"))
+            else:
+                q = q.filter(TestPaper.year_group.in_(allowed_years))
+
+        year_group = request.args.get("year_group", type=int)
+        term = (request.args.get("term") or "").strip()
+        subject = (request.args.get("subject") or "").strip().lower()
+
+        if year_group:
+            q = q.filter(TestPaper.year_group == year_group)
+        if term in TERMS:
+            q = q.filter(TestPaper.term == term)
+        if subject in ("maths", "reading", "spag", "writing"):
+            q = q.filter(TestPaper.subject == subject)
+
+        papers = q.order_by(TestPaper.created_at.desc()).all()
+        year_groups = [r[0] for r in db.session.query(SchoolClass.year_group).filter(SchoolClass.year_group.isnot(None)).distinct().order_by(SchoolClass.year_group.asc()).all()]
+        if not is_admin_user():
+            allowed = set(teacher_year_groups(current_user))
+            year_groups = [y for y in year_groups if y in allowed]
+
+        return render_template(
+            "papers_list.html",
+            papers=papers,
+            terms=TERMS,
+            selected_year_group=year_group,
+            selected_term=term,
+            selected_subject=subject,
+            year_groups=year_groups,
+            is_admin=is_admin_user(),
+        )
+
+    @app.route("/admin/papers", methods=["GET", "POST"])
+    @login_required
+    def admin_papers():
+        if not is_admin_user():
+            flash("Admins only.", "error")
+            return redirect(url_for("papers"))
+
+        if request.method == "POST":
+            year_group = request.form.get("year_group", type=int)
+            term = (request.form.get("term") or "").strip()
+            subject = (request.form.get("subject") or "").strip().lower()
+            title = (request.form.get("title") or "").strip()
+            paper_type = (request.form.get("paper_type") or "").strip()
+            upload = request.files.get("paper_file")
+
+            if not all([year_group, term, subject, title, paper_type]):
+                flash("Please complete all metadata fields.", "error")
+                return redirect(url_for("admin_papers"))
+            if term not in TERMS:
+                flash("Invalid term.", "error")
+                return redirect(url_for("admin_papers"))
+            if subject not in ("maths", "reading", "spag", "writing"):
+                flash("Invalid subject.", "error")
+                return redirect(url_for("admin_papers"))
+            if paper_type not in ("Paper", "Mark scheme"):
+                flash("Invalid paper type.", "error")
+                return redirect(url_for("admin_papers"))
+            if not upload or not upload.filename:
+                flash("Please choose a PDF file to upload.", "error")
+                return redirect(url_for("admin_papers"))
+
+            safe_name = secure_filename(upload.filename)
+            if not safe_name.lower().endswith(".pdf"):
+                flash("Only PDF files are allowed.", "error")
+                return redirect(url_for("admin_papers"))
+
+            stored_filename = f"{uuid.uuid4().hex}.pdf"
+            save_path = Path(app.config["TEST_PAPERS_UPLOAD_DIR"]) / stored_filename
+            upload.save(save_path)
+
+            paper = TestPaper(
+                year_group=year_group,
+                term=term,
+                subject=subject,
+                title=title,
+                paper_type=paper_type,
+                original_filename=safe_name,
+                stored_filename=stored_filename,
+                uploaded_by_teacher_id=current_user.id,
+            )
+            db.session.add(paper)
+            db.session.commit()
+            flash("Test paper uploaded.", "success")
+            return redirect(url_for("admin_papers"))
+
+        papers = TestPaper.query.order_by(TestPaper.created_at.desc()).all()
+        year_groups = [r[0] for r in db.session.query(SchoolClass.year_group).filter(SchoolClass.year_group.isnot(None)).distinct().order_by(SchoolClass.year_group.asc()).all()]
+        return render_template("admin_papers.html", papers=papers, terms=TERMS, year_groups=year_groups)
+
+    @app.route("/papers/<int:paper_id>/download")
+    @login_required
+    def download_paper(paper_id):
+        paper = TestPaper.query.get_or_404(paper_id)
+        if not is_admin_user():
+            if paper.year_group not in teacher_year_groups(current_user):
+                flash("Not authorised to access that paper.", "error")
+                return redirect(url_for("papers"))
+
+        path = Path(app.config["TEST_PAPERS_UPLOAD_DIR"]) / paper.stored_filename
+        if not path.exists():
+            flash("File is missing on disk. Please contact admin.", "error")
+            return redirect(url_for("admin_papers" if is_admin_user() else "papers"))
+
+        return send_file(path, as_attachment=True, download_name=paper.original_filename, mimetype="application/pdf")
+
+    @app.route("/admin/papers/<int:paper_id>/delete", methods=["POST"])
+    @login_required
+    def delete_paper(paper_id):
+        if not is_admin_user():
+            flash("Admins only.", "error")
+            return redirect(url_for("papers"))
+
+        paper = TestPaper.query.get_or_404(paper_id)
+        path = Path(app.config["TEST_PAPERS_UPLOAD_DIR"]) / paper.stored_filename
+        if path.exists():
+            try:
+                path.unlink()
+            except OSError:
+                flash("Could not remove file from disk; deleting record anyway.", "error")
+        else:
+            flash("File missing on disk; deleting record.", "error")
+
+        db.session.delete(paper)
+        db.session.commit()
+        flash("Paper deleted.", "success")
+        return redirect(url_for("admin_papers"))
+
 
 
     if app.debug:

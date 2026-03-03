@@ -338,6 +338,7 @@
           <a class="sidebar-link {{ 'active' if request.endpoint == 'assessments' else '' }}" href="{{ url_for('assessments') }}">GAP</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'interventions' else '' }}" href="{{ url_for('interventions') }}">Interventions</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ reports_href }}">Reports</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint in ['papers','download_paper'] else '' }}" href="{{ url_for('papers') }}">Test Papers</a>
         {% endif %}
 
         {% if current_user.is_admin %}
@@ -351,6 +352,7 @@
           <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_pupils_overview' else '' }}" href="{{ url_for('admin_pupils_overview') }}">Pupil Overview</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'admin_archive' else '' }}" href="{{ url_for('admin_archive') }}">Archive</a>
           <a class="sidebar-link {{ 'active' if request.endpoint == 'import_results' else '' }}" href="{{ url_for('import_results') }}">Import data</a>
+          <a class="sidebar-link {{ 'active' if request.endpoint in ['admin_papers','delete_paper'] else '' }}" href="{{ url_for('admin_papers') }}">Manage Test Papers</a>
         {% endif %}
       </nav>
     </aside>

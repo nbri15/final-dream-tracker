@@ -9,6 +9,7 @@ class Config:
 
     # --- Flask-WTF CSRF / Sessions ---
     SECRET_KEY = "dev"  # change later
+    MAX_CONTENT_LENGTH = 20 * 1024 * 1024  # 20MB upload guard
 
     # --- Assessment constants ---
     # Max raw scores (adjust if your tests change)
