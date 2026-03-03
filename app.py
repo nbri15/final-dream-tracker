@@ -1,4 +1,5 @@
 # app.py
+from flask_wtf.csrf import CSRFProtect
 from flask import Flask, render_template, redirect, url_for, request, flash, send_file
 from flask_migrate import Migrate
 from flask_login import (
@@ -41,6 +42,7 @@ except Exception:  # optional dependency in some local environments
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    CSRFProtect(app)
     app.config.setdefault("TEST_PAPERS_UPLOAD_DIR", os.path.join(app.instance_path, "uploads", "test_papers"))
     os.makedirs(app.config["TEST_PAPERS_UPLOAD_DIR"], exist_ok=True)
 
@@ -56,11 +58,12 @@ def create_app():
 
     # ---- Helpers
     TERMS = ["Autumn", "Spring", "Summer"]
-    SUBJECTS = ("maths", "reading", "spag")
+    SUBJECTS = SUBJECTS = ("maths", "reading", "spag", "writing")
     PAPERS = {
         "maths": ["Arithmetic", "Reasoning"],
         "reading": ["Paper 1", "Paper 2"],
         "spag": ["Spelling", "Grammar"],
+        "writing": ["judgement"]
     }
 
     def normalize_subject(value: str) -> str:
