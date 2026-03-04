@@ -497,14 +497,15 @@ def create_app():
             abort(403)
         return SchoolClass.query.get_or_404(class_id_int)
 
-    def csv_template_headers(subject: str):
-        by_subject = {
-            "maths": ["Name", "Gender", "PP", "LAPS", "Service Child", "Arithmetic", "Reasoning", "Note"],
-            "reading": ["Name", "Gender", "PP", "LAPS", "Service Child", "Reading P1", "Reading P2", "Note"],
-            "spag": ["Name", "Gender", "PP", "LAPS", "Service Child", "Spelling", "Grammar", "Note"],
-            "writing": ["Name", "Gender", "PP", "LAPS", "Service Child", "Writing Band", "Note"],
-        }
-        return by_subject.get(subject, by_subject["maths"])
+    def csv_template_headers():
+        return [
+            "Name", "Gender", "PP", "LAPS", "Service Child",
+            "Arithmetic", "Reasoning",
+            "Reading P1", "Reading P2",
+            "Spelling", "Grammar",
+            "Writing Band",
+            "Note",
+        ]
 
     def get_term_max_for_paper(class_id: int, academic_year_id: int, term: str, subject: str, paper: str) -> float:
         subject = normalize_subject(subject)
@@ -3473,12 +3474,8 @@ def create_app():
     @app.route("/import/results/template.csv")
     @login_required
     def import_results_template_csv():
-        subject = (request.args.get("subject") or "maths").strip().lower()
-        if subject not in ("maths", "reading", "spag", "writing"):
-            subject = "maths"
-
         klass = class_for_template_request(request.args.get("class_id"))
-        headers = csv_template_headers(subject)
+        headers = csv_template_headers()
 
         output = io.StringIO()
         writer = csv.writer(output)
@@ -3494,15 +3491,13 @@ def create_app():
                     "Y" if pupil.laps else "",
                     "Y" if pupil.service_child else "",
                 ]
-                score_cols = 2 if subject in ("maths", "reading", "spag") else 1
-                writer.writerow(base + ([""] * score_cols) + [""])
+                writer.writerow(base + ([""] * 8) + [""])
         else:
-            score_cols = 2 if subject in ("maths", "reading", "spag") else 1
-            writer.writerow([""] * (5 + score_cols + 1))
+            writer.writerow([""] * 13)
 
         csv_bytes = io.BytesIO(output.getvalue().encode("utf-8"))
         class_label = klass.name.lower().replace(" ", "-") if klass else "blank"
-        filename = f"{subject}-results-template-{class_label}.csv"
+        filename = f"combined-results-template-{class_label}.csv"
         return send_file(
             csv_bytes,
             mimetype="text/csv",
@@ -3517,10 +3512,6 @@ def create_app():
     def import_results():
         form = CSVUploadResultsForm()
         form.academic_year.choices = academic_year_choices()
-        subject = (request.values.get("subject") or form.subject.data or "maths").strip().lower()
-        if subject not in ("maths", "reading", "spag", "writing"):
-            subject = "maths"
-        form.subject.data = subject
 
         # Admin can choose class; teacher locked to theirs
         if current_user.is_admin:
@@ -3532,6 +3523,7 @@ def create_app():
             form.class_id.data = primary_class_id_for(current_user)
 
         preview_rows = []
+        preview_counts = {"maths": 0, "reading": 0, "spag": 0, "writing": 0}
 
         def normalize_header(header):
             s = re.sub(r"[\s\-]+", "_", str(header or "").strip().lower())
@@ -3574,12 +3566,12 @@ def create_app():
             return float(s)
 
         def parse_writing_band(v):
-            raw = (v or "").strip().lower()
-            if raw in ("",):
+            raw = (v or "").strip().lower().replace("-", "_").replace(" ", "_")
+            if raw == "":
                 return None
             mapping = {
-                "working_towards": "working_towards", "working towards": "working_towards", "wts": "working_towards",
-                "working_at": "working_at", "working at": "working_at", "ot": "working_at",
+                "working_towards": "working_towards", "wts": "working_towards",
+                "working_at": "working_at", "ot": "working_at",
                 "exceeding": "exceeding", "gds": "exceeding",
             }
             return mapping.get(raw)
@@ -3588,7 +3580,7 @@ def create_app():
             upload = request.files.get(form.csv_file.name)
             if not upload or not upload.filename.lower().endswith(".csv"):
                 flash("Please upload a .csv file.", "error")
-                return redirect(url_for("import_results", subject=subject))
+                return redirect(url_for("import_results"))
 
             class_id = form.class_id.data if current_user.is_admin else primary_class_id_for(current_user)
             year_id = form.academic_year.data
@@ -3613,7 +3605,7 @@ def create_app():
 
                 name = (r2.get("name") or "").strip()
                 if not name:
-                    rows.append({"row": i, "status": "error", "action": "skip", "name": "", "gender": None, "pp": False, "laps": False, "svc": False, "score_a": None, "score_b": None, "note": None})
+                    rows.append({"row": i, "status": "error", "action": "Missing pupil name", "name": "", "gender": None, "pp": False, "laps": False, "svc": False, "maths": "", "reading": "", "spag": "", "writing": "", "note": None})
                     continue
 
                 gender = parse_gender(r2.get("gender"))
@@ -3623,68 +3615,92 @@ def create_app():
                 note = (r2.get("note") or "").strip() or None
 
                 try:
-                    if subject == "maths":
-                        score_a, score_b = parse_float(r2.get("arithmetic")), parse_float(r2.get("reasoning"))
-                        band = None
-                    elif subject == "reading":
-                        score_a, score_b = parse_float(r2.get("reading_p1")), parse_float(r2.get("reading_p2"))
-                        band = None
-                    elif subject == "spag":
-                        score_a, score_b = parse_float(r2.get("spelling")), parse_float(r2.get("grammar"))
-                        band = None
-                    else:
-                        score_a = score_b = None
-                        raw_band = r2.get("writing_band")
-                        band = parse_writing_band(raw_band)
-                        if raw_band and not band:
-                            raise ValueError(f"Invalid writing band '{raw_band}'. Use working_towards/wts, working_at/ot, or exceeding/gds.")
+                    arithmetic = parse_float(r2.get("arithmetic"))
+                    reasoning = parse_float(r2.get("reasoning"))
+                    reading_p1 = parse_float(r2.get("reading_p1"))
+                    reading_p2 = parse_float(r2.get("reading_p2"))
+                    spelling = parse_float(r2.get("spelling"))
+                    grammar = parse_float(r2.get("grammar"))
                 except ValueError:
-                    rows.append({"row": i, "status": "error", "action": "bad score", "name": name, "gender": gender, "pp": pp, "laps": laps, "svc": svc, "score_a": None, "score_b": None, "note": note})
+                    rows.append({"row": i, "status": "error", "action": f"Row {i} ({name}): score values must be numbers.", "name": name, "gender": gender, "pp": pp, "laps": laps, "svc": svc, "maths": "", "reading": "", "spag": "", "writing": "", "note": note})
+                    continue
+
+                raw_band = r2.get("writing_band")
+                band = parse_writing_band(raw_band)
+                if (raw_band or "").strip() and not band:
+                    rows.append({"row": i, "status": "error", "action": f"Row {i} ({name}): invalid Writing Band '{raw_band}'. Use working_towards/wts, working_at/ot, or exceeding/gds.", "name": name, "gender": gender, "pp": pp, "laps": laps, "svc": svc, "maths": "", "reading": "", "spag": "", "writing": raw_band, "note": note})
                     continue
 
                 pupil = Pupil.query.filter_by(class_id=class_id, name=name).first()
                 pupil_action = "update pupil" if pupil else "create pupil"
-                result_action = "no result"
-                if subject == "writing":
-                    if band is not None:
-                        existing = WritingResult.query.filter_by(pupil_id=(pupil.id if pupil else -1), academic_year_id=year_id, term=term).first() if pupil else None
-                        result_action = "update result" if existing else "create result"
-                else:
-                    if score_a is not None or score_b is not None:
-                        existing = Result.query.filter_by(pupil_id=(pupil.id if pupil else -1), academic_year_id=year_id, term=term, subject=subject).first() if pupil else None
-                        result_action = "update result" if existing else "create result"
 
-                rows.append({"row": i, "status": "ok", "action": f"{pupil_action}; {result_action}", "name": name, "gender": gender, "pp": pp, "laps": laps, "svc": svc, "score_a": score_a, "score_b": score_b, "band": band, "note": note})
-                parsed.append((name, gender, pp, laps, svc, score_a, score_b, band, note))
+                maths_update = arithmetic is not None or reasoning is not None
+                reading_update = reading_p1 is not None or reading_p2 is not None
+                spag_update = spelling is not None or grammar is not None
+                writing_update = band is not None
+
+                if maths_update:
+                    preview_counts["maths"] += 1
+                if reading_update:
+                    preview_counts["reading"] += 1
+                if spag_update:
+                    preview_counts["spag"] += 1
+                if writing_update:
+                    preview_counts["writing"] += 1
+
+                actions = [pupil_action]
+                actions.append("maths update" if maths_update else "maths no update")
+                actions.append("reading update" if reading_update else "reading no update")
+                actions.append("spag update" if spag_update else "spag no update")
+                actions.append("writing update" if writing_update else "writing no update")
+
+                rows.append({
+                    "row": i,
+                    "status": "ok",
+                    "action": "; ".join(actions),
+                    "name": name,
+                    "gender": gender,
+                    "pp": pp,
+                    "laps": laps,
+                    "svc": svc,
+                    "maths": f"A:{arithmetic if arithmetic is not None else ''} B:{reasoning if reasoning is not None else ''}" if maths_update else "",
+                    "reading": f"P1:{reading_p1 if reading_p1 is not None else ''} P2:{reading_p2 if reading_p2 is not None else ''}" if reading_update else "",
+                    "spag": f"S:{spelling if spelling is not None else ''} G:{grammar if grammar is not None else ''}" if spag_update else "",
+                    "writing": band or "",
+                    "note": note,
+                })
+                parsed.append({
+                    "name": name,
+                    "gender": gender,
+                    "pp": pp,
+                    "laps": laps,
+                    "svc": svc,
+                    "note": note,
+                    "maths": (arithmetic, reasoning) if maths_update else None,
+                    "reading": (reading_p1, reading_p2) if reading_update else None,
+                    "spag": (spelling, grammar) if spag_update else None,
+                    "writing": band,
+                })
 
             preview_rows = rows
 
             if form.submit_confirm.data:
-                for (name, gender, pp, laps, svc, score_a, score_b, band, note) in parsed:
-                    pupil = Pupil.query.filter_by(class_id=class_id, name=name).first()
+                for entry in parsed:
+                    pupil = Pupil.query.filter_by(class_id=class_id, name=entry["name"]).first()
                     if not pupil:
-                        pupil = Pupil(class_id=class_id, name=name, gender=gender, pupil_premium=pp, laps=laps, service_child=svc)
+                        pupil = Pupil(class_id=class_id, name=entry["name"], gender=entry["gender"], pupil_premium=entry["pp"], laps=entry["laps"], service_child=entry["svc"])
                         db.session.add(pupil)
                         db.session.flush()
                     else:
-                        pupil.gender = gender or pupil.gender
-                        pupil.pupil_premium = pp
-                        pupil.laps = laps
-                        pupil.service_child = svc
+                        pupil.gender = entry["gender"] or pupil.gender
+                        pupil.pupil_premium = entry["pp"]
+                        pupil.laps = entry["laps"]
+                        pupil.service_child = entry["svc"]
 
-                    if subject == "writing":
-                        if band is None:
+                    for subject, scores in (("maths", entry["maths"]), ("reading", entry["reading"]), ("spag", entry["spag"])):
+                        if not scores:
                             continue
-                        existing = WritingResult.query.filter_by(pupil_id=pupil.id, academic_year_id=year_id, term=term).first()
-                        if not existing:
-                            existing = WritingResult(pupil_id=pupil.id, academic_year_id=year_id, term=term, band=band, note=note)
-                            db.session.add(existing)
-                        else:
-                            existing.band = band
-                            existing.note = note
-                    else:
-                        if score_a is None and score_b is None:
-                            continue
+                        score_a, score_b = scores
                         existing = Result.query.filter_by(pupil_id=pupil.id, academic_year_id=year_id, term=term, subject=subject).first()
                         if not existing:
                             existing = Result(pupil_id=pupil.id, academic_year_id=year_id, term=term, class_id_snapshot=pupil.class_id, subject=subject)
@@ -3697,16 +3713,25 @@ def create_app():
                             combined_pct, summary = None, None
                         existing.combined_pct = combined_pct
                         existing.summary = summary
-                        existing.note = note
+                        existing.note = entry["note"]
                         existing.class_id_snapshot = pupil.class_id
 
+                    if entry["writing"] is not None:
+                        existing_writing = WritingResult.query.filter_by(pupil_id=pupil.id, academic_year_id=year_id, term=term).first()
+                        if not existing_writing:
+                            existing_writing = WritingResult(pupil_id=pupil.id, academic_year_id=year_id, term=term, band=entry["writing"], note=entry["note"])
+                            db.session.add(existing_writing)
+                        else:
+                            existing_writing.band = entry["writing"]
+                            existing_writing.note = entry["note"]
+
                 db.session.commit()
-                flash("Saved.", "success")
-                return redirect(url_for("dashboard", subject=subject, year=year_id, **{"class": class_id}))
+                flash("Saved combined class import.", "success")
+                return redirect(url_for("dashboard", subject="maths", year=year_id, **{"class": class_id}))
 
-            return render_template("import_results.html", form=form, preview_rows=preview_rows, selected_subject=subject, template_class_id=(form.class_id.data if current_user.is_admin else primary_class_id_for(current_user)))
+            return render_template("import_results.html", form=form, preview_rows=preview_rows, preview_counts=preview_counts, template_class_id=(form.class_id.data if current_user.is_admin else primary_class_id_for(current_user)))
 
-        return render_template("import_results.html", form=form, preview_rows=preview_rows, selected_subject=subject, template_class_id=(form.class_id.data if current_user.is_admin else primary_class_id_for(current_user)))
+        return render_template("import_results.html", form=form, preview_rows=preview_rows, preview_counts=preview_counts, template_class_id=(form.class_id.data if current_user.is_admin else primary_class_id_for(current_user)))
 
     # ---- GAP Analysis
 

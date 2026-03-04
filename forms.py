@@ -95,17 +95,6 @@ class CSVUploadResultsForm(FlaskForm):
         choices=[("Autumn", "Autumn"), ("Spring", "Spring"), ("Summer", "Summer")],
         validators=[DataRequired()],
     )
-    subject = SelectField(
-        "Subject",
-        choices=[
-            ("maths", "Maths"),
-            ("reading", "Reading"),
-            ("spag", "SPaG"),
-            ("writing", "Writing"),
-        ],
-        validators=[Optional()],
-        default="maths",
-    )
     # Admin can choose class; teachers are restricted in the route
     class_id = SelectField("Class (admins)", coerce=int, validators=[Optional()])
 
