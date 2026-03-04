@@ -5303,6 +5303,14 @@ def create_app():
     return app
 
 
+
 if __name__ == "__main__":
     app = create_app()
-    app.run(debug=True)
+
+    # Network-safe defaults for school LAN
+    host = os.environ.get("DREAM_HOST", "0.0.0.0")   # allow other PCs
+    port = int(os.environ.get("DREAM_PORT", "8000")) # match your staff link
+    debug = os.environ.get("DREAM_DEBUG", "0").lower() in ("1", "true", "yes")
+
+    # IMPORTANT: disable reloader (network share + debug causes constant restarts)
+    app.run(host=host, port=port, debug=debug, use_reloader=False)
