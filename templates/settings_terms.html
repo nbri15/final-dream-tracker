@@ -4,6 +4,15 @@
 <h1>Term settings — {{ klass.name }}</h1>
 <form method="post">
   {{ form.csrf_token }}
+  {% if current_user.is_admin %}
+    <label>Class<br>
+      <select name="class_id" onchange="window.location='{{ url_for('term_settings') }}?class_id=' + this.value + '&year={{ form.academic_year.data or '' }}'">
+        {% for c in classes %}
+          <option value="{{ c.id }}" {{ 'selected' if c.id == klass.id else '' }}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  {% endif %}
   <label>Academic year<br>{{ form.academic_year() }}</label>
   <fieldset class="card">
     <legend><strong>Autumn</strong></legend>

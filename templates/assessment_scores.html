@@ -4,7 +4,16 @@
 <h1>Scores — {{ assessment.title }}</h1>
 <p>Enter marks per pupil per question. Leave blank for zero.</p>
 
+<form method="post" action="{{ url_for('assessment_set_max_score', assessment_id=assessment.id) }}" class="inline" style="margin-bottom: 0.75rem;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Paper max score<br>
+    <input type="number" step="0.1" min="0.1" name="max_score" value="{{ current_max_score }}" required>
+  </label>
+  <button class="button" type="submit">Save max score</button>
+</form>
+
 <form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <table class="sortable">
     <thead>
       <tr>

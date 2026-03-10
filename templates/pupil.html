@@ -16,6 +16,11 @@
   {% if is_year6 %}
     <a class="button" href="{{ url_for('pupil_sats_page', pupil_id=pupil.id, year=selected_year_id) }}">SATs</a>
   {% endif %}
+  <form method="post" action="{{ url_for('pupil_delete', pupil_id=pupil.id) }}" style="display:inline;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ url_for('dashboard', subject=subject, year=selected_year_id, **{'class': pupil.class_id}) }}">
+    <button class="button" type="submit" onclick="return confirm('Delete this pupil and all linked records?');">Delete pupil</button>
+  </form>
 </div>
 
 <form class="inline" method="get" action="{{ url_for('pupil_page', pupil_id=pupil.id) }}">
