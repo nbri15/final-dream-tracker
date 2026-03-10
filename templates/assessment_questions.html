@@ -5,6 +5,7 @@
 <p>Class: {{ assessment.klass.name }} | Year: {{ assessment.academic_year.label }} | Term: {{ assessment.term }} | Subject: {{ assessment.subject|upper }} | Paper: {{ assessment.paper }}</p>
 
 <form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <table class="table-sticky sortable">
     <thead><tr><th class="sortable" data-sort="number">#</th><th class="sortable" data-sort="number">Max mark</th><th class="sortable" data-sort="text">Question type</th><th class="sortable" data-sort="text">Strand</th><th class="sortable" data-sort="text">Notes</th></tr></thead>
     <tbody id="qbody">

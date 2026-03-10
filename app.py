@@ -538,6 +538,44 @@ def create_app():
         }
         return float(defaults.get((subject, paper), 0.0))
 
+    def apply_term_config_max(cfg: TermConfig, subject: str, paper: str, value: float):
+        mapping = {
+            ("maths", "Arithmetic"): "arith_max",
+            ("maths", "Reasoning"): "reason_max",
+            ("reading", "Paper 1"): "reading_p1_max",
+            ("reading", "Paper 2"): "reading_p2_max",
+            ("spag", "Spelling"): "spelling_max",
+            ("spag", "Grammar"): "grammar_max",
+        }
+        field_name = mapping.get((subject, paper))
+        if not field_name:
+            return False
+        setattr(cfg, field_name, value)
+        return True
+
+    def get_or_create_term_config(class_id: int, academic_year_id: int, term: str):
+        cfg = TermConfig.query.filter_by(
+            class_id=class_id,
+            academic_year_id=academic_year_id,
+            term=term,
+        ).first()
+        if cfg:
+            return cfg
+        cfg = TermConfig(
+            class_id=class_id,
+            academic_year_id=academic_year_id,
+            term=term,
+            arith_max=app.config["ARITH_MAX"],
+            reason_max=app.config["REASON_MAX"],
+            reading_p1_max=app.config["READING_P1_MAX"],
+            reading_p2_max=app.config["READING_P2_MAX"],
+            spelling_max=app.config["SPAG_SPELLING_MAX"],
+            grammar_max=app.config["SPAG_GRAMMAR_MAX"],
+        )
+        db.session.add(cfg)
+        db.session.flush()
+        return cfg
+
     def result_field_for_paper(subject: str, paper: str) -> str:
         subject = normalize_subject(subject)
         mapping = {
@@ -2777,6 +2815,18 @@ def create_app():
 
     # ---- Result add
 
+    @app.post("/pupils/<int:pupil_id>/delete")
+    @login_required
+    def pupil_delete(pupil_id):
+        pupil = Pupil.query.get_or_404(pupil_id)
+        require_pupil_access(pupil)
+
+        redirect_target = request.form.get("next") or request.referrer or url_for("dashboard", subject="maths")
+        db.session.delete(pupil)
+        db.session.commit()
+        flash("Pupil deleted.", "success")
+        return redirect(redirect_target)
+
     @app.route("/results/new/<int:pupil_id>", methods=["GET", "POST"])
     @login_required
     def result_new(pupil_id):
@@ -3303,45 +3353,31 @@ def create_app():
     @app.route("/settings/terms", methods=["GET", "POST"])
     @login_required
     def term_settings():
-        # Only teachers manage their class settings here
-        if getattr(current_user, "is_admin", False):
-            flash("Admin cannot edit term settings here.", "error")
-            return redirect(url_for("dashboard", subject="maths"))
-        if not primary_class_id_for(current_user):
-            flash("No class assigned.", "error")
-            return redirect(url_for("dashboard", subject="maths"))
-
-        klass = SchoolClass.query.get_or_404(primary_class_id_for(current_user))
         ensure_default_year()
         form = TermSettingsForm()
         form.academic_year.choices = academic_year_choices()
 
+        classes = []
+        if is_admin_user():
+            classes = active_classes_query().order_by(SchoolClass.name.asc()).all()
+            if not classes:
+                flash("No classes available.", "error")
+                return redirect(url_for("dashboard", subject="maths"))
+            requested_class_id = request.values.get("class_id", type=int)
+            selected_class_id = requested_class_id or classes[0].id
+            klass = SchoolClass.query.get_or_404(selected_class_id)
+        else:
+            if not primary_class_id_for(current_user):
+                flash("No class assigned.", "error")
+                return redirect(url_for("dashboard", subject="maths"))
+            klass = SchoolClass.query.get_or_404(primary_class_id_for(current_user))
+
         # Ensure cfg rows for all three terms in selected year
         def get_or_make(year_id, term):
-            row = TermConfig.query.filter_by(
-                class_id=klass.id,
-                academic_year_id=year_id,
-                term=term,
-            ).first()
-            if not row:
-                row = TermConfig(
-                    class_id=klass.id,
-                    academic_year_id=year_id,
-                    term=term,
-                    arith_max=50,
-                    reason_max=50,
-                    reading_p1_max=50,
-                    reading_p2_max=50,
-                    spelling_max=20,
-                    grammar_max=40,
-                )
-                db.session.add(row)
-                db.session.flush()
-            return row
+            return get_or_create_term_config(klass.id, year_id, term)
 
-        # GET: populate from selected year (or current year)
         if request.method == "GET":
-            year = get_current_year()
+            year = parse_year_id_or_current(request.args.get("year"))
             form.academic_year.data = year.id
             a = get_or_make(year.id, "Autumn")
             s = get_or_make(year.id, "Spring")
@@ -3384,13 +3420,14 @@ def create_app():
             u.spelling_max, u.grammar_max = (form.summer_spelling_max.data, form.summer_grammar_max.data)
             db.session.commit()
 
-            # Keep GAP assessments in sync with maxima
             sync_gap_assessments_for_class_year(klass.id, year_id)
 
             flash("Term settings saved and GAP analyses synced.", "success")
+            if is_admin_user():
+                return redirect(url_for("term_settings", class_id=klass.id, year=year_id))
             return redirect(url_for("dashboard", subject="maths"))
 
-        return render_template("settings_terms.html", form=form, klass=klass)
+        return render_template("settings_terms.html", form=form, klass=klass, classes=classes)
 
     # ---- Class settings (year group)
 
@@ -3797,6 +3834,34 @@ def create_app():
         qs = AssessmentQuestion.query.filter_by(assessment_id=a.id).order_by(AssessmentQuestion.number.asc()).all()
         return render_template("assessment_questions.html", assessment=a, questions=qs)
 
+    @app.post("/assessments/<int:assessment_id>/set-max-score")
+    @login_required
+    def assessment_set_max_score(assessment_id):
+        a = Assessment.query.get_or_404(assessment_id)
+        require_class_access(a.class_id)
+
+        raw_value = (request.form.get("max_score") or "").strip()
+        try:
+            max_score = float(raw_value)
+        except ValueError:
+            flash("Enter a valid paper max score.", "error")
+            return redirect(url_for("assessment_scores", assessment_id=a.id))
+
+        if max_score <= 0:
+            flash("Paper max score must be greater than zero.", "error")
+            return redirect(url_for("assessment_scores", assessment_id=a.id))
+
+        cfg = get_or_create_term_config(a.class_id, a.academic_year_id, a.term)
+        if not apply_term_config_max(cfg, a.subject, a.paper, max_score):
+            flash("Could not update this paper max score.", "error")
+            return redirect(url_for("assessment_scores", assessment_id=a.id))
+
+        ensure_questions_total_marks(a.id, max_score)
+        db.session.commit()
+
+        flash(f"Paper max score set to {max_score:g} and GAP questions synced.", "success")
+        return redirect(url_for("assessment_scores", assessment_id=a.id))
+
     @app.route("/assessments/<int:assessment_id>/scores", methods=["GET", "POST"])
     @login_required
     def assessment_scores(assessment_id):
@@ -3840,7 +3905,15 @@ def create_app():
             return redirect(url_for("assessment_analysis", assessment_id=a.id))
 
         scores = {(s.pupil_id, s.question_id): s.mark for s in PupilQuestionScore.query.filter_by(assessment_id=a.id).all()}
-        return render_template("assessment_scores.html", assessment=a, pupils=pupils, questions=questions, scores=scores)
+        current_max_score = get_term_max_for_paper(a.class_id, a.academic_year_id, a.term, a.subject, a.paper)
+        return render_template(
+            "assessment_scores.html",
+            assessment=a,
+            pupils=pupils,
+            questions=questions,
+            scores=scores,
+            current_max_score=current_max_score,
+        )
 
     @app.route("/assessments/<int:assessment_id>/analysis")
     @login_required

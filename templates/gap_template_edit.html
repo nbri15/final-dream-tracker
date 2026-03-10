@@ -3,11 +3,18 @@
 {% block content %}
 <h1>Edit template v{{ template.version }} — {{ template.subject }} {{ template.paper }}</h1>
 <p>{{ template.academic_year.label }} · Year {{ template.year_group }} · {{ template.term }} · {{ 'Active' if template.is_active else 'Archived' }}</p>
-<form method="post" action="{{ url_for('gap_template_publish', template_id=template.id) }}" style="display:inline"><button class="button" type="submit">Publish</button></form>
-<form method="post" action="{{ url_for('gap_template_new_version', template_id=template.id) }}" style="display:inline"><button class="button" type="submit">Create new version</button></form>
-<form method="post" action="{{ url_for('gap_template_copy_next_year', template_id=template.id) }}" style="display:inline"><button class="button" type="submit">Copy to next year</button></form>
+<form method="post" action="{{ url_for('gap_template_publish', template_id=template.id) }}" style="display:inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="button" type="submit">Publish</button></form>
+<form method="post" action="{{ url_for('gap_template_new_version', template_id=template.id) }}" style="display:inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="button" type="submit">Create new version</button></form>
+<form method="post" action="{{ url_for('gap_template_copy_next_year', template_id=template.id) }}" style="display:inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="button" type="submit">Copy to next year</button></form>
 
 <form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <table class="table-sticky sortable"><thead><tr><th class="sortable" data-sort="number">#</th><th class="sortable" data-sort="number">Max</th><th class="sortable" data-sort="text">Type</th><th class="sortable" data-sort="text">Strand</th><th class="sortable" data-sort="text">Notes</th></tr></thead><tbody id="qbody">
 {% for q in questions %}<tr><td><input type="number" name="qn[]" value="{{ q.number }}"></td><td><input type="number" step="0.1" name="max[]" value="{{ q.max_mark }}"></td><td><input name="qtype[]" value="{{ q.question_type or '' }}"></td><td><input name="strand[]" value="{{ q.strand or '' }}"></td><td><input name="notes[]" value="{{ q.notes or '' }}"></td></tr>{% endfor %}
 </tbody></table>

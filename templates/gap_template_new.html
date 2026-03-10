@@ -3,6 +3,7 @@
 {% block content %}
 <h1>New GAP template</h1>
 <form method="post" class="inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <label>Year<select name="academic_year_id">{% for y in years %}<option value="{{ y.id }}">{{ y.label }}</option>{% endfor %}</select></label>
   <label>Year group<input type="number" min="1" max="6" name="year_group" value="6"></label>
   <label>Term<select name="term">{% for t in terms %}<option>{{ t }}</option>{% endfor %}</select></label>
