@@ -58,6 +58,27 @@ class TermSettingsForm(FlaskForm):
     summer_reading_p2_max = FloatField("Summer Reading Paper 2 max", default=50, validators=[DataRequired(), NumberRange(min=1)])
     summer_spelling_max = FloatField("Summer Spelling max", default=50, validators=[DataRequired(), NumberRange(min=1)])
     summer_grammar_max = FloatField("Summer Grammar max", default=50, validators=[DataRequired(), NumberRange(min=1)])
+
+    autumn_maths_wts_max = FloatField("Autumn Maths Working towards max %", default=55, validators=[DataRequired(), NumberRange(min=0, max=100)])
+    autumn_maths_ot_max = FloatField("Autumn Maths Working at max %", default=75, validators=[DataRequired(), NumberRange(min=0, max=100)])
+    autumn_reading_wts_max = FloatField("Autumn Reading Working towards max %", default=65, validators=[DataRequired(), NumberRange(min=0, max=100)])
+    autumn_reading_ot_max = FloatField("Autumn Reading Working at max %", default=85, validators=[DataRequired(), NumberRange(min=0, max=100)])
+    autumn_spag_wts_max = FloatField("Autumn SPaG Working towards max %", default=65, validators=[DataRequired(), NumberRange(min=0, max=100)])
+    autumn_spag_ot_max = FloatField("Autumn SPaG Working at max %", default=85, validators=[DataRequired(), NumberRange(min=0, max=100)])
+
+    spring_maths_wts_max = FloatField("Spring Maths Working towards max %", default=55, validators=[DataRequired(), NumberRange(min=0, max=100)])
+    spring_maths_ot_max = FloatField("Spring Maths Working at max %", default=75, validators=[DataRequired(), NumberRange(min=0, max=100)])
+    spring_reading_wts_max = FloatField("Spring Reading Working towards max %", default=65, validators=[DataRequired(), NumberRange(min=0, max=100)])
+    spring_reading_ot_max = FloatField("Spring Reading Working at max %", default=85, validators=[DataRequired(), NumberRange(min=0, max=100)])
+    spring_spag_wts_max = FloatField("Spring SPaG Working towards max %", default=65, validators=[DataRequired(), NumberRange(min=0, max=100)])
+    spring_spag_ot_max = FloatField("Spring SPaG Working at max %", default=85, validators=[DataRequired(), NumberRange(min=0, max=100)])
+
+    summer_maths_wts_max = FloatField("Summer Maths Working towards max %", default=55, validators=[DataRequired(), NumberRange(min=0, max=100)])
+    summer_maths_ot_max = FloatField("Summer Maths Working at max %", default=75, validators=[DataRequired(), NumberRange(min=0, max=100)])
+    summer_reading_wts_max = FloatField("Summer Reading Working towards max %", default=65, validators=[DataRequired(), NumberRange(min=0, max=100)])
+    summer_reading_ot_max = FloatField("Summer Reading Working at max %", default=85, validators=[DataRequired(), NumberRange(min=0, max=100)])
+    summer_spag_wts_max = FloatField("Summer SPaG Working towards max %", default=65, validators=[DataRequired(), NumberRange(min=0, max=100)])
+    summer_spag_ot_max = FloatField("Summer SPaG Working at max %", default=85, validators=[DataRequired(), NumberRange(min=0, max=100)])
     submit = SubmitField("Save settings")
 
 

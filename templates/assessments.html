@@ -15,13 +15,14 @@
 <section class="card">
   <div class="table-scroll">
 <table class="sortable">
-  <thead><tr><th class="sortable" data-sort="text">Title</th><th class="sortable" data-sort="text">Subject</th><th class="sortable" data-sort="text">Paper</th><th class="sortable" data-sort="text">Class</th><th class="sortable" data-sort="text">Year</th><th class="sortable" data-sort="text">Term</th><th class="sortable" data-sort="text">Actions</th></tr></thead>
+  <thead><tr><th class="sortable" data-sort="text">Title</th><th class="sortable" data-sort="text">Subject</th><th class="sortable" data-sort="text">Paper</th><th class="sortable" data-sort="number">Paper max</th><th class="sortable" data-sort="text">Class</th><th class="sortable" data-sort="text">Year</th><th class="sortable" data-sort="text">Term</th><th class="sortable" data-sort="text">Actions</th></tr></thead>
   <tbody>
     {% for a in assessments %}
     <tr>
       <td>{{ a.title }}</td>
       <td>{{ a.subject|upper }}</td>
       <td>{{ a.paper }}</td>
+      <td>{{ assessment_maxima.get(a.id) }}</td>
       <td>{{ a.klass.name }}</td>
       <td>{{ a.academic_year.label }}</td>
       <td>{{ a.term }}</td>

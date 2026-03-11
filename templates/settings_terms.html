@@ -14,33 +14,34 @@
     </label>
   {% endif %}
   <label>Academic year<br>{{ form.academic_year() }}</label>
+
+  {% for term in ['autumn', 'spring', 'summer'] %}
   <fieldset class="card">
-    <legend><strong>Autumn</strong></legend>
-    <label>Arithmetic max<br>{{ form.autumn_arith_max(step="0.1") }}</label><br><br>
-    <label>Reasoning max<br>{{ form.autumn_reason_max(step="0.1") }}</label><br><br>
-    <label>Reading Paper 1 max<br>{{ form.autumn_reading_p1_max(step="0.1") }}</label><br><br>
-    <label>Reading Paper 2 max<br>{{ form.autumn_reading_p2_max(step="0.1") }}</label><br><br>
-    <label>Spelling max<br>{{ form.autumn_spelling_max(step="0.1") }}</label><br><br>
-    <label>Grammar max<br>{{ form.autumn_grammar_max(step="0.1") }}</label>
+    <legend><strong>{{ term|capitalize }}</strong></legend>
+    <h3>Paper maxima</h3>
+    <label>Arithmetic max<br>{{ form[term + '_arith_max'](step="0.1") }}</label><br><br>
+    <label>Reasoning max<br>{{ form[term + '_reason_max'](step="0.1") }}</label><br>
+    <small>Maths combined max: {{ (form[term + '_arith_max'].data or 0) + (form[term + '_reason_max'].data or 0) }}</small><br><br>
+
+    <label>Reading Paper 1 max<br>{{ form[term + '_reading_p1_max'](step="0.1") }}</label><br><br>
+    <label>Reading Paper 2 max<br>{{ form[term + '_reading_p2_max'](step="0.1") }}</label><br>
+    <small>Reading combined max: {{ (form[term + '_reading_p1_max'].data or 0) + (form[term + '_reading_p2_max'].data or 0) }}</small><br><br>
+
+    <label>Spelling max<br>{{ form[term + '_spelling_max'](step="0.1") }}</label><br><br>
+    <label>Grammar max<br>{{ form[term + '_grammar_max'](step="0.1") }}</label><br>
+    <small>SPaG combined max: {{ (form[term + '_spelling_max'].data or 0) + (form[term + '_grammar_max'].data or 0) }}</small>
+
+    <h3 style="margin-top:1rem;">Passing thresholds (%)</h3>
+    <label>Maths Working towards &lt;<br>{{ form[term + '_maths_wts_max'](step="0.1") }}</label><br><br>
+    <label>Maths Working at &lt;<br>{{ form[term + '_maths_ot_max'](step="0.1") }}</label><br><br>
+
+    <label>Reading Working towards &lt;<br>{{ form[term + '_reading_wts_max'](step="0.1") }}</label><br><br>
+    <label>Reading Working at &lt;<br>{{ form[term + '_reading_ot_max'](step="0.1") }}</label><br><br>
+
+    <label>SPaG Working towards &lt;<br>{{ form[term + '_spag_wts_max'](step="0.1") }}</label><br><br>
+    <label>SPaG Working at &lt;<br>{{ form[term + '_spag_ot_max'](step="0.1") }}</label>
   </fieldset>
-  <fieldset class="card">
-    <legend><strong>Spring</strong></legend>
-    <label>Arithmetic max<br>{{ form.spring_arith_max(step="0.1") }}</label><br><br>
-    <label>Reasoning max<br>{{ form.spring_reason_max(step="0.1") }}</label><br><br>
-    <label>Reading Paper 1 max<br>{{ form.spring_reading_p1_max(step="0.1") }}</label><br><br>
-    <label>Reading Paper 2 max<br>{{ form.spring_reading_p2_max(step="0.1") }}</label><br><br>
-    <label>Spelling max<br>{{ form.spring_spelling_max(step="0.1") }}</label><br><br>
-    <label>Grammar max<br>{{ form.spring_grammar_max(step="0.1") }}</label>
-  </fieldset>
-  <fieldset class="card">
-    <legend><strong>Summer</strong></legend>
-    <label>Arithmetic max<br>{{ form.summer_arith_max(step="0.1") }}</label><br><br>
-    <label>Reasoning max<br>{{ form.summer_reason_max(step="0.1") }}</label><br><br>
-    <label>Reading Paper 1 max<br>{{ form.summer_reading_p1_max(step="0.1") }}</label><br><br>
-    <label>Reading Paper 2 max<br>{{ form.summer_reading_p2_max(step="0.1") }}</label><br><br>
-    <label>Spelling max<br>{{ form.summer_spelling_max(step="0.1") }}</label><br><br>
-    <label>Grammar max<br>{{ form.summer_grammar_max(step="0.1") }}</label>
-  </fieldset>
+  {% endfor %}
   <br>
   {{ form.submit(class_="button") }}
 </form>

@@ -256,6 +256,12 @@ class TermConfig(db.Model):
     reading_p2_max = db.Column(db.Float, nullable=True)
     spelling_max = db.Column(db.Float, nullable=True)
     grammar_max = db.Column(db.Float, nullable=True)
+    maths_wts_max = db.Column(db.Float, nullable=False, default=55.0)
+    maths_ot_max = db.Column(db.Float, nullable=False, default=75.0)
+    reading_wts_max = db.Column(db.Float, nullable=False, default=65.0)
+    reading_ot_max = db.Column(db.Float, nullable=False, default=85.0)
+    spag_wts_max = db.Column(db.Float, nullable=False, default=65.0)
+    spag_ot_max = db.Column(db.Float, nullable=False, default=85.0)
 
     __table_args__ = (
         db.UniqueConstraint('class_id', 'academic_year_id', 'term', name='uq_class_year_term'),

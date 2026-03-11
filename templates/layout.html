@@ -309,7 +309,6 @@
   {% set sidebar_subject = request.view_args.get('subject') if request.view_args and request.view_args.get('subject') else request.args.get('subject', 'maths') %}
   {% set sidebar_mode = request.args.get('mode', 'table' if current_user.is_admin else 'home') %}
   {% set reports_href = url_for('reports', **sidebar_params.values) %}
-  {% set is_year6_menu = y6_nav is not none %}
 
   {% if current_user.is_authenticated %}
     <div id="sidebarOverlay" class="overlay" hidden></div>
@@ -321,25 +320,19 @@
       </div>
       <nav class="sidebar-nav">
         <div class="section-title">Teacher</div>
-        {% if is_year6_menu %}
-          <a class="sidebar-link {{ 'active' if request.endpoint == 'y6_home' or (request.endpoint == 'dashboard' and sidebar_mode == 'home') else '' }}" href="{{ url_for('y6_home', **sidebar_params.values) }}">Home</a>
-          <a class="sidebar-link {{ 'active' if request.endpoint in ['y6_sats_tracker', 'sats_page'] else '' }}" href="{{ url_for('y6_sats_tracker', **sidebar_params.values) }}">SATs Tracker</a>
-          <a class="sidebar-link {{ 'active' if request.endpoint in ['y6_writing', 'writing_dashboard'] or (request.endpoint == 'dashboard' and sidebar_subject == 'writing') else '' }}" href="{{ url_for('y6_writing', **sidebar_params.values) }}">Writing</a>
-          <a class="sidebar-link {{ 'active' if request.endpoint in ['y6_reports', 'reports'] else '' }}" href="{{ url_for('y6_reports', **sidebar_params.values) }}">Reports</a>
-        {% else %}
-          <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'home' else '' }}" href="{{ url_for('dashboard', subject='maths', mode='home', **sidebar_params.values) }}">Home</a>
-          <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'table' and sidebar_subject == 'maths' else '' }}" href="{{ url_for('dashboard', subject='maths', mode='table', **sidebar_params.values) }}">Maths</a>
-          <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'table' and sidebar_subject == 'reading' else '' }}" href="{{ url_for('dashboard', subject='reading', mode='table', **sidebar_params.values) }}">Reading</a>
-          <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'table' and sidebar_subject == 'spag' else '' }}" href="{{ url_for('dashboard', subject='spag', mode='table', **sidebar_params.values) }}">SPaG</a>
-          <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'table' and sidebar_subject == 'writing' else '' }}" href="{{ url_for('dashboard', subject='writing', mode='table', **sidebar_params.values) }}">Writing</a>
-          {% if current_user.is_admin %}
-            <a class="sidebar-link {{ 'active' if request.endpoint in ['sats_page','y6_sats_tracker'] else '' }}" href="{{ url_for('y6_sats_tracker', year=sats_nav.year_id, **{'class': sats_nav.class_id}) if sats_nav else url_for('y6_sats_tracker') }}">SATs (Year 6)</a>
-          {% endif %}
-          <a class="sidebar-link {{ 'active' if request.endpoint == 'assessments' else '' }}" href="{{ url_for('assessments') }}">GAP</a>
-          <a class="sidebar-link {{ 'active' if request.endpoint == 'interventions' else '' }}" href="{{ url_for('interventions') }}">Interventions</a>
-          <a class="sidebar-link {{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ reports_href }}">Reports</a>
-          <a class="sidebar-link {{ 'active' if request.endpoint in ['papers','download_paper'] else '' }}" href="{{ url_for('papers') }}">Test Papers</a>
+        <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'home' else '' }}" href="{{ url_for('dashboard', subject='maths', mode='home', **sidebar_params.values) }}">Home</a>
+        <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'table' and sidebar_subject == 'maths' else '' }}" href="{{ url_for('dashboard', subject='maths', mode='table', **sidebar_params.values) }}">Maths</a>
+        <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'table' and sidebar_subject == 'reading' else '' }}" href="{{ url_for('dashboard', subject='reading', mode='table', **sidebar_params.values) }}">Reading</a>
+        <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'table' and sidebar_subject == 'spag' else '' }}" href="{{ url_for('dashboard', subject='spag', mode='table', **sidebar_params.values) }}">SPaG</a>
+        <a class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' and sidebar_mode == 'table' and sidebar_subject == 'writing' else '' }}" href="{{ url_for('dashboard', subject='writing', mode='table', **sidebar_params.values) }}">Writing</a>
+        {% if sats_nav %}
+          <a class="sidebar-link {{ 'active' if request.endpoint in ['sats_page','y6_sats_tracker', 'y6_home', 'y6_writing', 'y6_reports'] else '' }}" href="{{ url_for('y6_sats_tracker', year=sats_nav.year_id, **{'class': sats_nav.class_id}) }}">SATs (Year 6)</a>
         {% endif %}
+        <a class="sidebar-link {{ 'active' if request.endpoint == 'assessments' else '' }}" href="{{ url_for('assessments') }}">GAP</a>
+        <a class="sidebar-link {{ 'active' if request.endpoint == 'interventions' else '' }}" href="{{ url_for('interventions') }}">Interventions</a>
+        <a class="sidebar-link {{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ reports_href }}">Reports</a>
+        <a class="sidebar-link {{ 'active' if request.endpoint in ['papers','download_paper'] else '' }}" href="{{ url_for('papers') }}">Test Papers</a>
+        <a class="sidebar-link {{ 'active' if request.endpoint == 'term_settings' else '' }}" href="{{ url_for('term_settings') }}">Assessment settings</a>
 
         {% if current_user.is_admin %}
           <div class="section-title">Admin</div>
