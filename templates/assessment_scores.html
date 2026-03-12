@@ -4,6 +4,14 @@
 <h1>Scores — {{ assessment.title }}</h1>
 <p>Enter marks per pupil per question. Leave blank for zero.</p>
 
+<p>
+  {% for paper, mx in paper_maxima.items() %}
+    <strong>{{ paper }} max:</strong> {{ mx }}{% if not loop.last %} | {% endif %}
+  {% endfor %}
+  <br>
+  <strong>Combined max:</strong> {{ combined_max }}
+</p>
+
 <form method="post" action="{{ url_for('assessment_set_max_score', assessment_id=assessment.id) }}" class="inline" style="margin-bottom: 0.75rem;">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <label>Paper max score<br>

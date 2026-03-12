@@ -3,6 +3,7 @@
 {% block content %}
 <h1>Analysis — {{ assessment.title }}</h1>
 <p>Class: {{ assessment.klass.name }} | Year: {{ assessment.academic_year.label }} | Term: {{ assessment.term }} | Subject: {{ assessment.subject|upper }} | Paper: {{ assessment.paper }}</p>
+<p><strong>{{ assessment.paper }} max:</strong> {{ configured_paper_max }} | <strong>Working towards cutoff:</strong> {{ thresholds.wts_max }}% | <strong>Working at cutoff:</strong> {{ thresholds.ot_max }}%</p>
 
 <canvas id="qbar" height="120"></canvas>
 

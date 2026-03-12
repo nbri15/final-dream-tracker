@@ -177,6 +177,12 @@ def create_app():
             "reading_p2_max": "ALTER TABLE term_configs ADD COLUMN reading_p2_max FLOAT",
             "spelling_max": "ALTER TABLE term_configs ADD COLUMN spelling_max FLOAT",
             "grammar_max": "ALTER TABLE term_configs ADD COLUMN grammar_max FLOAT",
+            "maths_wts_max": "ALTER TABLE term_configs ADD COLUMN maths_wts_max FLOAT NOT NULL DEFAULT 55.0",
+            "maths_ot_max": "ALTER TABLE term_configs ADD COLUMN maths_ot_max FLOAT NOT NULL DEFAULT 75.0",
+            "reading_wts_max": "ALTER TABLE term_configs ADD COLUMN reading_wts_max FLOAT NOT NULL DEFAULT 65.0",
+            "reading_ot_max": "ALTER TABLE term_configs ADD COLUMN reading_ot_max FLOAT NOT NULL DEFAULT 85.0",
+            "spag_wts_max": "ALTER TABLE term_configs ADD COLUMN spag_wts_max FLOAT NOT NULL DEFAULT 65.0",
+            "spag_ot_max": "ALTER TABLE term_configs ADD COLUMN spag_ot_max FLOAT NOT NULL DEFAULT 85.0",
         }
         with db.engine.begin() as conn:
             for name, sql in needed.items():
@@ -571,6 +577,12 @@ def create_app():
             reading_p2_max=app.config["READING_P2_MAX"],
             spelling_max=app.config["SPAG_SPELLING_MAX"],
             grammar_max=app.config["SPAG_GRAMMAR_MAX"],
+            maths_wts_max=app.config["BAND_THRESHOLDS"]["maths"]["wts_max"],
+            maths_ot_max=app.config["BAND_THRESHOLDS"]["maths"]["ot_max"],
+            reading_wts_max=app.config["BAND_THRESHOLDS"]["reading"]["wts_max"],
+            reading_ot_max=app.config["BAND_THRESHOLDS"]["reading"]["ot_max"],
+            spag_wts_max=app.config["BAND_THRESHOLDS"]["spag"]["wts_max"],
+            spag_ot_max=app.config["BAND_THRESHOLDS"]["spag"]["ot_max"],
         )
         db.session.add(cfg)
         db.session.flush()
@@ -608,13 +620,35 @@ def create_app():
             result.spelling = score_a
             result.grammar = score_b
 
-    def compute_band_from_pct(pct, subject):
-        """Return band label using subject-specific threshold config."""
+    def get_term_thresholds(class_id: int, academic_year_id: int, term: str, subject: str):
         subject = normalize_subject(subject)
-        thresholds = app.config["BAND_THRESHOLDS"].get(
+        cfg = TermConfig.query.filter_by(
+            class_id=class_id,
+            academic_year_id=academic_year_id,
+            term=term,
+        ).first()
+
+        default_thresholds = app.config["BAND_THRESHOLDS"].get(
             subject,
             app.config["BAND_THRESHOLDS"]["maths"],
         )
+        if not cfg:
+            return default_thresholds
+
+        field_map = {
+            "maths": ("maths_wts_max", "maths_ot_max"),
+            "reading": ("reading_wts_max", "reading_ot_max"),
+            "spag": ("spag_wts_max", "spag_ot_max"),
+        }
+        wts_field, ot_field = field_map[subject]
+        return {
+            "wts_max": float(getattr(cfg, wts_field) or default_thresholds["wts_max"]),
+            "ot_max": float(getattr(cfg, ot_field) or default_thresholds["ot_max"]),
+        }
+
+    def compute_band_from_pct(pct, subject, klass_id, term, year_id):
+        """Return band label using term-configured subject thresholds."""
+        thresholds = get_term_thresholds(klass_id, year_id, term, subject)
         if pct < thresholds["wts_max"]:
             return "Working towards ARE"
         if pct < thresholds["ot_max"]:
@@ -622,7 +656,7 @@ def create_app():
         return "Exceeding ARE"
 
     def compute_combined_and_band(arith, reason, klass_id, term, year_id, subject="maths"):
-        """Compute Combined % and band using subject-aware maxima + thresholds."""
+        """Compute Combined % and band using term-configured maxima + thresholds."""
         if arith is None and reason is None:
             return None, None
 
@@ -637,7 +671,7 @@ def create_app():
         )
 
         combined_pct = round(((arith + reason) / total_max) * 100.0, 1) if total_max > 0 else 0.0
-        return combined_pct, compute_band_from_pct(combined_pct, subject)
+        return combined_pct, compute_band_from_pct(combined_pct, subject, klass_id, term, year_id)
 
 
     SATS_DEFAULT_COLUMNS = (("Maths", "M", 18), ("Reading", "R", 12), ("SPaG", "S", 16))
@@ -2378,6 +2412,14 @@ def create_app():
         if klass is not None and klass.year_group == 6 and mode == "home":
             return redirect(url_for("y6_home", **request.args.to_dict()))
 
+        term_maxima = {}
+        if subject != "writing" and selected_year and klass:
+            paper_a, paper_b = PAPERS[subject]
+            for t in TERMS:
+                a_max = get_term_max_for_paper(klass.id, selected_year.id, t, subject, paper_a)
+                b_max = get_term_max_for_paper(klass.id, selected_year.id, t, subject, paper_b)
+                term_maxima[t] = {"paper_a": a_max, "paper_b": b_max, "combined": a_max + b_max}
+
         return render_template(
             "index.html",
             is_admin=is_admin,
@@ -2407,6 +2449,7 @@ def create_app():
             sort_key=sort,
             sort_dir=direction,
             table_rows=table_rows,
+            term_maxima=term_maxima,
         )
 
 
@@ -3390,20 +3433,54 @@ def create_app():
             form.autumn_reading_p2_max.data = a.reading_p2_max
             form.autumn_spelling_max.data = a.spelling_max
             form.autumn_grammar_max.data = a.grammar_max
+            form.autumn_maths_wts_max.data = a.maths_wts_max
+            form.autumn_maths_ot_max.data = a.maths_ot_max
+            form.autumn_reading_wts_max.data = a.reading_wts_max
+            form.autumn_reading_ot_max.data = a.reading_ot_max
+            form.autumn_spag_wts_max.data = a.spag_wts_max
+            form.autumn_spag_ot_max.data = a.spag_ot_max
             form.spring_arith_max.data = s.arith_max
             form.spring_reason_max.data = s.reason_max
             form.spring_reading_p1_max.data = s.reading_p1_max
             form.spring_reading_p2_max.data = s.reading_p2_max
             form.spring_spelling_max.data = s.spelling_max
             form.spring_grammar_max.data = s.grammar_max
+            form.spring_maths_wts_max.data = s.maths_wts_max
+            form.spring_maths_ot_max.data = s.maths_ot_max
+            form.spring_reading_wts_max.data = s.reading_wts_max
+            form.spring_reading_ot_max.data = s.reading_ot_max
+            form.spring_spag_wts_max.data = s.spag_wts_max
+            form.spring_spag_ot_max.data = s.spag_ot_max
             form.summer_arith_max.data = u.arith_max
             form.summer_reason_max.data = u.reason_max
             form.summer_reading_p1_max.data = u.reading_p1_max
             form.summer_reading_p2_max.data = u.reading_p2_max
             form.summer_spelling_max.data = u.spelling_max
             form.summer_grammar_max.data = u.grammar_max
+            form.summer_maths_wts_max.data = u.maths_wts_max
+            form.summer_maths_ot_max.data = u.maths_ot_max
+            form.summer_reading_wts_max.data = u.reading_wts_max
+            form.summer_reading_ot_max.data = u.reading_ot_max
+            form.summer_spag_wts_max.data = u.spag_wts_max
+            form.summer_spag_ot_max.data = u.spag_ot_max
 
         if form.validate_on_submit():
+            threshold_pairs = [
+                ("Autumn Maths", form.autumn_maths_wts_max.data, form.autumn_maths_ot_max.data),
+                ("Autumn Reading", form.autumn_reading_wts_max.data, form.autumn_reading_ot_max.data),
+                ("Autumn SPaG", form.autumn_spag_wts_max.data, form.autumn_spag_ot_max.data),
+                ("Spring Maths", form.spring_maths_wts_max.data, form.spring_maths_ot_max.data),
+                ("Spring Reading", form.spring_reading_wts_max.data, form.spring_reading_ot_max.data),
+                ("Spring SPaG", form.spring_spag_wts_max.data, form.spring_spag_ot_max.data),
+                ("Summer Maths", form.summer_maths_wts_max.data, form.summer_maths_ot_max.data),
+                ("Summer Reading", form.summer_reading_wts_max.data, form.summer_reading_ot_max.data),
+                ("Summer SPaG", form.summer_spag_wts_max.data, form.summer_spag_ot_max.data),
+            ]
+            for label, wts_max, ot_max in threshold_pairs:
+                if wts_max >= ot_max:
+                    flash(f"{label}: Working towards cutoff must be lower than Working at cutoff.", "error")
+                    return redirect(url_for("term_settings", class_id=klass.id, year=form.academic_year.data))
+
             year_id = form.academic_year.data
             a = get_or_make(year_id, "Autumn")
             s = get_or_make(year_id, "Spring")
@@ -3412,12 +3489,21 @@ def create_app():
             a.arith_max, a.reason_max = (form.autumn_arith_max.data, form.autumn_reason_max.data)
             a.reading_p1_max, a.reading_p2_max = (form.autumn_reading_p1_max.data, form.autumn_reading_p2_max.data)
             a.spelling_max, a.grammar_max = (form.autumn_spelling_max.data, form.autumn_grammar_max.data)
+            a.maths_wts_max, a.maths_ot_max = (form.autumn_maths_wts_max.data, form.autumn_maths_ot_max.data)
+            a.reading_wts_max, a.reading_ot_max = (form.autumn_reading_wts_max.data, form.autumn_reading_ot_max.data)
+            a.spag_wts_max, a.spag_ot_max = (form.autumn_spag_wts_max.data, form.autumn_spag_ot_max.data)
             s.arith_max, s.reason_max = (form.spring_arith_max.data, form.spring_reason_max.data)
             s.reading_p1_max, s.reading_p2_max = (form.spring_reading_p1_max.data, form.spring_reading_p2_max.data)
             s.spelling_max, s.grammar_max = (form.spring_spelling_max.data, form.spring_grammar_max.data)
+            s.maths_wts_max, s.maths_ot_max = (form.spring_maths_wts_max.data, form.spring_maths_ot_max.data)
+            s.reading_wts_max, s.reading_ot_max = (form.spring_reading_wts_max.data, form.spring_reading_ot_max.data)
+            s.spag_wts_max, s.spag_ot_max = (form.spring_spag_wts_max.data, form.spring_spag_ot_max.data)
             u.arith_max, u.reason_max = (form.summer_arith_max.data, form.summer_reason_max.data)
             u.reading_p1_max, u.reading_p2_max = (form.summer_reading_p1_max.data, form.summer_reading_p2_max.data)
             u.spelling_max, u.grammar_max = (form.summer_spelling_max.data, form.summer_grammar_max.data)
+            u.maths_wts_max, u.maths_ot_max = (form.summer_maths_wts_max.data, form.summer_maths_ot_max.data)
+            u.reading_wts_max, u.reading_ot_max = (form.summer_reading_wts_max.data, form.summer_reading_ot_max.data)
+            u.spag_wts_max, u.spag_ot_max = (form.summer_spag_wts_max.data, form.summer_spag_ot_max.data)
             db.session.commit()
 
             sync_gap_assessments_for_class_year(klass.id, year_id)
@@ -3782,7 +3868,17 @@ def create_app():
         if not getattr(current_user, "is_admin", False):
             q = q.filter(Assessment.class_id.in_(user_class_ids(current_user)))
         items = q.order_by(Assessment.created_at.desc()).all()
-        return render_template("assessments.html", assessments=items, subject=subject, subjects=SUBJECTS)
+        assessment_maxima = {
+            a.id: get_term_max_for_paper(a.class_id, a.academic_year_id, a.term, a.subject, a.paper)
+            for a in items
+        }
+        return render_template(
+            "assessments.html",
+            assessments=items,
+            subject=subject,
+            subjects=SUBJECTS,
+            assessment_maxima=assessment_maxima,
+        )
 
     @app.route("/assessments/new", methods=["GET", "POST"])
     @login_required
@@ -3906,6 +4002,11 @@ def create_app():
 
         scores = {(s.pupil_id, s.question_id): s.mark for s in PupilQuestionScore.query.filter_by(assessment_id=a.id).all()}
         current_max_score = get_term_max_for_paper(a.class_id, a.academic_year_id, a.term, a.subject, a.paper)
+        paper_a, paper_b = PAPERS[normalize_subject(a.subject)]
+        paper_maxima = {
+            paper_a: get_term_max_for_paper(a.class_id, a.academic_year_id, a.term, a.subject, paper_a),
+            paper_b: get_term_max_for_paper(a.class_id, a.academic_year_id, a.term, a.subject, paper_b),
+        }
         return render_template(
             "assessment_scores.html",
             assessment=a,
@@ -3913,6 +4014,8 @@ def create_app():
             questions=questions,
             scores=scores,
             current_max_score=current_max_score,
+            paper_maxima=paper_maxima,
+            combined_max=sum(paper_maxima.values()),
         )
 
     @app.route("/assessments/<int:assessment_id>/analysis")
@@ -3943,12 +4046,15 @@ def create_app():
             sb["mark"] += s.mark
             sb["max"] += q.max_mark
 
+        configured_paper_max = get_term_max_for_paper(a.class_id, a.academic_year_id, a.term, a.subject, a.paper)
+        thresholds = get_term_thresholds(a.class_id, a.academic_year_id, a.term, a.subject)
+
         flagged = []
         for p in pupils:
             t = per_pupil_total[p.id]
-            overall_pct = round((t["mark"] / t["max"]) * 100.0, 1) if t["max"] > 0 else 0.0
+            overall_pct = round((t["mark"] / configured_paper_max) * 100.0, 1) if configured_paper_max > 0 else 0.0
             reasons = []
-            if overall_pct < 50.0:
+            if overall_pct < thresholds["wts_max"]:
                 reasons.append(f"Low overall score ({overall_pct}%).")
             weak_strands = []
             for strand, v in per_pupil_strand[p.id].items():
@@ -3967,7 +4073,14 @@ def create_app():
             pct = round((agg / q.max_mark) * 100.0, 1) if q.max_mark > 0 else 0.0
             data.append({"number": q.number, "avg_pct": pct, "strand": q.question_type or q.strand or ""})
 
-        return render_template("assessment_analysis.html", assessment=a, data=data, flagged=flagged)
+        return render_template(
+            "assessment_analysis.html",
+            assessment=a,
+            data=data,
+            flagged=flagged,
+            configured_paper_max=configured_paper_max,
+            thresholds=thresholds,
+        )
 
     @app.route("/gap/templates")
     @login_required

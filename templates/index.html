@@ -240,6 +240,12 @@
           {% for t in terms %}
             <th class="term-divider" colspan="3" style="font-weight:normal">
               {% if subject != "writing" %}
+                {% set maxima = term_maxima.get(t) if term_maxima else None %}
+                {% if maxima %}
+                  <div>
+                    {{ paper_labels[0] }} max: {{ maxima.paper_a }} | {{ paper_labels[1] }} max: {{ maxima.paper_b }} | Combined max: {{ maxima.combined }}
+                  </div>
+                {% endif %}
                 {% set g = (gap_links.get(t) if gap_links else None) %}
                 {% if g and klass %}
                   GAP:
