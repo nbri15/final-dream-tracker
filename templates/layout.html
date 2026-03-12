@@ -7,14 +7,14 @@
 
   <style>
     /* Page */
-    html, body { height: 100%; }
+    html, body { height: 100%; width: 100%; }
     body {
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       margin: 0;
       padding: 0;
       display: block;           /* important: prevent accidental flex layouts */
-      width: 100%;
-      overflow-x: hidden;
+      min-width: 100%;
+      overflow-x: auto;
     }
 
     /* Top bar */
@@ -26,7 +26,8 @@
       padding: 0.75rem 1rem;
       background: #111827;
       color: #e5e7eb;
-      width: 100%;
+      min-width: 100%;
+      width: max-content;
       box-sizing: border-box;
     }
     header.bar .brand {
@@ -152,7 +153,12 @@
     }
 
     /* Main content */
-    main { padding: 1rem; }
+    main {
+      padding: 1rem;
+      width: 100%;
+      min-width: 100%;
+      box-sizing: border-box;
+    }
     body.has-sidebar main,
     body.has-sidebar header.bar {
       padding-left: calc(56px + 1rem);
@@ -224,7 +230,7 @@
     small.muted { color: #6b7280; }
 
     tbody tr:nth-child(even) { background: #fafafa; }
-    .table-sticky thead th { position: sticky; top: 0; z-index: 2; }
+    .table-sticky thead th { position: sticky; top: 0; z-index: 3; background: #f9fafb; }
     .checkbox-cell { text-align: center; width: 60px; }
     input:focus, select:focus, textarea:focus, button:focus, a:focus {
       outline: 2px solid #2563eb;
@@ -240,7 +246,53 @@
     .table-scroll {
       width: 100%;
       overflow-x: auto;
+      overflow-y: visible;
       -webkit-overflow-scrolling: touch;
+    }
+
+    .table-scroll table,
+    table.table-sticky {
+      width: max-content;
+      min-width: 100%;
+    }
+
+    .table-scroll th,
+    .table-scroll td,
+    table.table-sticky th,
+    table.table-sticky td {
+      white-space: nowrap;
+    }
+
+    .table-scroll th,
+    table.table-sticky th {
+      position: relative;
+    }
+
+    .sticky-col {
+      position: sticky;
+      left: 0;
+      z-index: 4;
+      background: #fff;
+    }
+    .table-sticky thead .sticky-col {
+      z-index: 5;
+      background: #f9fafb;
+    }
+
+    .col-resize-handle {
+      position: absolute;
+      top: 0;
+      right: -4px;
+      width: 8px;
+      height: 100%;
+      cursor: col-resize;
+      user-select: none;
+      touch-action: none;
+    }
+    .is-resizing,
+    .is-resizing * {
+      cursor: col-resize !important;
+      user-select: none !important;
     }
 
     .y6-home-table th,
@@ -550,6 +602,77 @@
 
       rows.forEach(r => tbody.appendChild(r));
     });
+  })();
+  </script>
+
+  <script>
+  (function () {
+    const MIN_COL_WIDTH = 80;
+
+    function getTablesForResize() {
+      const scoped = Array.from(document.querySelectorAll('.table-scroll table'));
+      const sticky = Array.from(document.querySelectorAll('table.table-sticky'));
+      return Array.from(new Set(scoped.concat(sticky)));
+    }
+
+    function setColumnWidth(table, colIndex, width) {
+      const rows = table.querySelectorAll('tr');
+      rows.forEach((row) => {
+        const cell = row.children[colIndex];
+        if (!cell) return;
+        cell.style.width = width + 'px';
+        cell.style.minWidth = width + 'px';
+      });
+    }
+
+    function attachResizeHandle(table, th, colIndex) {
+      if (th.dataset.resizeBound === 'true') return;
+      th.dataset.resizeBound = 'true';
+
+      const handle = document.createElement('span');
+      handle.className = 'col-resize-handle';
+      handle.setAttribute('aria-hidden', 'true');
+      th.appendChild(handle);
+
+      handle.addEventListener('mousedown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const startX = event.clientX;
+        const startWidth = th.getBoundingClientRect().width;
+
+        document.body.classList.add('is-resizing');
+
+        function onMouseMove(moveEvent) {
+          const delta = moveEvent.clientX - startX;
+          const nextWidth = Math.max(MIN_COL_WIDTH, Math.round(startWidth + delta));
+          setColumnWidth(table, colIndex, nextWidth);
+        }
+
+        function onMouseUp() {
+          document.body.classList.remove('is-resizing');
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', onMouseUp);
+        }
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+      });
+    }
+
+    function initResizableTables() {
+      const tables = getTablesForResize();
+      tables.forEach((table) => {
+        const headers = table.querySelectorAll('thead th');
+        headers.forEach((th, colIndex) => attachResizeHandle(table, th, colIndex));
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initResizableTables);
+    } else {
+      initResizableTables();
+    }
   })();
   </script>
 
