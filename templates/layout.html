@@ -7,14 +7,14 @@
 
   <style>
     /* Page */
-    html, body { height: 100%; width: 100%; max-width: 100%; }
+    html, body { height: 100%; width: 100%; max-width: 100%; overflow-x: clip; }
     body {
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       margin: 0;
       padding: 0;
       display: block;           /* important: prevent accidental flex layouts */
       min-width: 0;
-      overflow-x: hidden;
+      overflow-x: clip;
     }
 
     /* Top bar */
@@ -160,7 +160,7 @@
       min-width: 0;
       max-width: 100%;
       box-sizing: border-box;
-      overflow-x: hidden;
+      overflow-x: clip;
     }
     body.has-sidebar main,
     body.has-sidebar header.bar {
@@ -178,8 +178,8 @@
     ul.flash li.error { background: #7f1d1d; color: #fee2e2; }
 
     /* Cards + tables */
-    section.card, .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
-    section, .card, .table-scroll { min-width: 0; }
+    section.card, .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; margin: 1rem 0; max-width: 100%; }
+    section, .card, .table-scroll, .kpis > *, form.inline, .column-toggle { min-width: 0; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 0.5rem; border-top: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
     th { background: #f9fafb; }
@@ -248,18 +248,20 @@
     .toast.show { opacity: .9; }
 
     .table-scroll {
+      display: block;
       width: 100%;
       max-width: 100%;
       overflow-x: auto;
-      overflow-y: visible;
+      overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
     }
 
     .table-scroll table,
     table.table-sticky {
       width: max-content;
       min-width: 100%;
-      table-layout: fixed;
+      table-layout: auto;
     }
 
     .table-scroll th,
@@ -268,6 +270,7 @@
     table.table-sticky td {
       white-space: nowrap;
       box-sizing: border-box;
+      max-width: none;
     }
 
     .column-toggle { position: relative; margin: 0 0 0.5rem; display: inline-block; }
