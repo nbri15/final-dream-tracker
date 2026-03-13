@@ -1056,6 +1056,11 @@ def create_app():
                     klass = SchoolClass.query.get(int(class_sel))
                 except (TypeError, ValueError):
                     klass = None
+            if not (klass and (not klass.is_archived) and (not klass.is_archive) and klass.year_group == 6):
+                klass = (active_classes_query()
+                         .filter(SchoolClass.year_group == 6)
+                         .order_by(SchoolClass.name.asc())
+                         .first())
         else:
             klass = SchoolClass.query.get(primary_class_id_for(current_user)) if primary_class_id_for(current_user) else None
 

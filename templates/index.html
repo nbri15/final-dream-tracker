@@ -204,23 +204,23 @@
     <h2>Pupils & results <span id="save-status" class="save-status" aria-live="polite"></span></h2>
 
     <div class="table-scroll">
-    <table class="table-sticky sortable">
+    <table id="dashboard-results-table" class="table-sticky sortable" data-column-toggle="true">
       <thead>
         <tr>
-          <th class="sortable" data-sort="text" rowspan="3">{{ sort_control("No.", "number", sort_key, sort_dir) }}</th>
-          <th class="sortable" data-sort="text" rowspan="3">{{ sort_control("Name", "name", sort_key, sort_dir) }}</th>
+          <th class="sortable" data-sort="text" data-col-key="number" data-col-locked="true" rowspan="3">{{ sort_control("No.", "number", sort_key, sort_dir) }}</th>
+          <th class="sortable sticky-col" data-sort="text" data-col-key="name" data-col-locked="true" rowspan="3">{{ sort_control("Name", "name", sort_key, sort_dir) }}</th>
           {% if is_admin and (selected_class_id == 'all') %}
-            <th class="sortable" data-sort="text" rowspan="3">Class</th>
+            <th class="sortable" data-sort="text" data-col-key="class" rowspan="3">Class</th>
           {% endif %}
-          <th class="sortable" data-sort="text" rowspan="3">{{ sort_control("Gender", "gender", sort_key, sort_dir) }}</th>
-          <th class="sortable" data-sort="text" rowspan="3">{{ sort_control("PP", "pp", sort_key, sort_dir) }}</th>
-          <th class="sortable" data-sort="text" rowspan="3">{{ sort_control("LAPS", "laps", sort_key, sort_dir) }}</th>
-          <th class="sortable" data-sort="text" rowspan="3">{{ sort_control("Service", "service", sort_key, sort_dir) }}</th>
+          <th class="sortable" data-sort="text" data-col-key="gender" rowspan="3">{{ sort_control("Gender", "gender", sort_key, sort_dir) }}</th>
+          <th class="sortable" data-sort="text" data-col-key="pp" rowspan="3">{{ sort_control("PP", "pp", sort_key, sort_dir) }}</th>
+          <th class="sortable" data-sort="text" data-col-key="laps" rowspan="3">{{ sort_control("LAPS", "laps", sort_key, sort_dir) }}</th>
+          <th class="sortable" data-sort="text" data-col-key="service" rowspan="3">{{ sort_control("Service", "service", sort_key, sort_dir) }}</th>
 
           <th class="term-divider" colspan="3">Autumn</th>
           <th class="term-divider" colspan="3">Spring</th>
           <th class="term-divider" colspan="3">Summer</th>
-          <th class="sortable" data-sort="text" rowspan="3">Actions</th>
+          <th class="sortable" data-sort="text" data-col-key="actions" data-col-locked="true" rowspan="3">Actions</th>
         </tr>
 
         <tr>
@@ -276,7 +276,7 @@
 
             <tr>
               <td>{{ p.number or '' }}</td>
-              <td><a href="{{ url_for('pupil_page', pupil_id=p.id, year=selected_year_id, subject=subject) }}">{{ p.name }}</a></td>
+              <td class="sticky-col"><a href="{{ url_for('pupil_page', pupil_id=p.id, year=selected_year_id, subject=subject) }}">{{ p.name }}</a></td>
 
               {% if is_admin and (selected_class_id == 'all') %}
                 <td>{{ p.klass.name }}</td>

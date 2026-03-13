@@ -7,14 +7,14 @@
 
   <style>
     /* Page */
-    html, body { height: 100%; width: 100%; }
+    html, body { height: 100%; width: 100%; max-width: 100%; }
     body {
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       margin: 0;
       padding: 0;
       display: block;           /* important: prevent accidental flex layouts */
-      min-width: 100%;
-      overflow-x: auto;
+      min-width: 0;
+      overflow-x: hidden;
     }
 
     /* Top bar */
@@ -26,8 +26,9 @@
       padding: 0.75rem 1rem;
       background: #111827;
       color: #e5e7eb;
-      min-width: 100%;
-      width: max-content;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
       box-sizing: border-box;
     }
     header.bar .brand {
@@ -156,8 +157,10 @@
     main {
       padding: 1rem;
       width: 100%;
-      min-width: 100%;
+      min-width: 0;
+      max-width: 100%;
       box-sizing: border-box;
+      overflow-x: hidden;
     }
     body.has-sidebar main,
     body.has-sidebar header.bar {
@@ -245,6 +248,7 @@
 
     .table-scroll {
       width: 100%;
+      max-width: 100%;
       overflow-x: auto;
       overflow-y: visible;
       -webkit-overflow-scrolling: touch;
@@ -254,6 +258,7 @@
     table.table-sticky {
       width: max-content;
       min-width: 100%;
+      table-layout: fixed;
     }
 
     .table-scroll th,
@@ -261,7 +266,28 @@
     table.table-sticky th,
     table.table-sticky td {
       white-space: nowrap;
+      box-sizing: border-box;
     }
+
+    .column-toggle { position: relative; margin: 0 0 0.5rem; display: inline-block; }
+    .column-toggle-btn { background: #fff; color: #111827; }
+    .column-toggle-panel {
+      position: absolute;
+      z-index: 12;
+      top: calc(100% + 0.35rem);
+      left: 0;
+      min-width: 220px;
+      max-height: 260px;
+      overflow: auto;
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      padding: 0.5rem;
+    }
+    .column-toggle-panel[hidden] { display: none; }
+    .column-toggle-option { display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0; }
+    .col-hidden { display: none !important; }
 
     .table-scroll th,
     table.table-sticky th {
@@ -622,6 +648,7 @@
         if (!cell) return;
         cell.style.width = width + 'px';
         cell.style.minWidth = width + 'px';
+        cell.style.maxWidth = width + 'px';
       });
     }
 
@@ -672,6 +699,140 @@
       document.addEventListener('DOMContentLoaded', initResizableTables);
     } else {
       initResizableTables();
+    }
+  })();
+  </script>
+
+  <script>
+  (function () {
+    function slugify(value) {
+      return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'column';
+    }
+
+    function buildLeafColumns(table) {
+      const thead = table.tHead;
+      if (!thead || !thead.rows.length) return [];
+      const grid = [];
+      let width = 0;
+
+      Array.from(thead.rows).forEach((row, rowIndex) => {
+        grid[rowIndex] = grid[rowIndex] || [];
+        let col = 0;
+        Array.from(row.cells).forEach((cell) => {
+          while (grid[rowIndex][col]) col += 1;
+          const colSpan = Math.max(1, parseInt(cell.getAttribute('colspan') || '1', 10));
+          const rowSpan = Math.max(1, parseInt(cell.getAttribute('rowspan') || '1', 10));
+          for (let r = rowIndex; r < rowIndex + rowSpan; r += 1) {
+            grid[r] = grid[r] || [];
+            for (let c = col; c < col + colSpan; c += 1) grid[r][c] = cell;
+          }
+          col += colSpan;
+          width = Math.max(width, col);
+        });
+      });
+
+      const lastRow = grid.length - 1;
+      const leaves = [];
+      for (let col = 0; col < width; col += 1) {
+        let cell = grid[lastRow] && grid[lastRow][col];
+        if (!cell) {
+          for (let row = lastRow - 1; row >= 0; row -= 1) {
+            if (grid[row] && grid[row][col]) {
+              cell = grid[row][col];
+              break;
+            }
+          }
+        }
+        leaves.push({ colIndex: col, th: cell });
+      }
+      return leaves;
+    }
+
+    function applyColumnVisibility(table, colIndex, hidden) {
+      table.querySelectorAll('tr').forEach((row) => {
+        const cell = row.children[colIndex];
+        if (!cell) return;
+        cell.classList.toggle('col-hidden', hidden);
+      });
+    }
+
+    function initColumnToggle(table) {
+      if (table.dataset.colToggleBound === 'true') return;
+      table.dataset.colToggleBound = 'true';
+
+      const wrapper = table.closest('.table-scroll');
+      if (!wrapper) return;
+      const tableId = table.id || table.dataset.tableKey || `table-${Math.random().toString(36).slice(2, 8)}`;
+      if (!table.id) table.id = tableId;
+
+      const leaves = buildLeafColumns(table);
+      if (!leaves.length) return;
+
+      const storageKey = `dt-col-visibility:${tableId}`;
+      let saved = {};
+      try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}') || {}; } catch (e) { saved = {}; }
+
+      const host = document.createElement('div');
+      host.className = 'column-toggle';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'button column-toggle-btn';
+      btn.textContent = 'Columns';
+      btn.setAttribute('aria-expanded', 'false');
+      const panel = document.createElement('div');
+      panel.className = 'column-toggle-panel';
+      panel.hidden = true;
+      host.appendChild(btn);
+      host.appendChild(panel);
+      wrapper.parentNode.insertBefore(host, wrapper);
+
+      leaves.forEach(({ colIndex, th }, i) => {
+        if (!th) return;
+        const label = (th.dataset.colLabel || th.textContent || '').replace(/\s+/g, ' ').trim() || `Column ${i + 1}`;
+        const key = th.dataset.colKey || `${slugify(label)}-${i}`;
+        th.dataset.colKey = key;
+        const locked = th.dataset.colLocked === 'true' || colIndex === 0;
+
+        const option = document.createElement('label');
+        option.className = 'column-toggle-option';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = !saved[key];
+        checkbox.disabled = locked;
+        checkbox.dataset.colIndex = String(colIndex);
+        option.appendChild(checkbox);
+        option.appendChild(document.createTextNode(label));
+        panel.appendChild(option);
+
+        applyColumnVisibility(table, colIndex, !checkbox.checked);
+
+        checkbox.addEventListener('change', () => {
+          applyColumnVisibility(table, colIndex, !checkbox.checked);
+          saved[key] = !checkbox.checked;
+          localStorage.setItem(storageKey, JSON.stringify(saved));
+        });
+      });
+
+      btn.addEventListener('click', () => {
+        panel.hidden = !panel.hidden;
+        btn.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+      });
+      document.addEventListener('click', (event) => {
+        if (!host.contains(event.target)) {
+          panel.hidden = true;
+          btn.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
+    function initColumnToggles() {
+      document.querySelectorAll('table[data-column-toggle="true"]').forEach(initColumnToggle);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initColumnToggles);
+    } else {
+      initColumnToggles();
     }
   })();
   </script>
