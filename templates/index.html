@@ -225,13 +225,13 @@
 
         <tr>
           {% if subject == "writing" %}
-            <th class="term-divider">{{ paper_labels[0] }}</th><th class="sortable" data-sort="text">{{ paper_labels[1] }}</th><th class="sortable" data-sort="number">Combined</th>
-            <th class="term-divider">{{ paper_labels[0] }}</th><th class="sortable" data-sort="text">{{ paper_labels[1] }}</th><th class="sortable" data-sort="number">Combined</th>
-            <th class="term-divider">{{ paper_labels[0] }}</th><th class="sortable" data-sort="text">{{ paper_labels[1] }}</th><th class="sortable" data-sort="number">Combined</th>
+            <th class="term-divider" data-col-key="autumn-paper-a">{{ paper_labels[0] }}</th><th class="sortable" data-sort="text" data-col-key="autumn-paper-b">{{ paper_labels[1] }}</th><th class="sortable" data-sort="number" data-col-key="autumn-total">Combined</th>
+            <th class="term-divider" data-col-key="spring-paper-a">{{ paper_labels[0] }}</th><th class="sortable" data-sort="text" data-col-key="spring-paper-b">{{ paper_labels[1] }}</th><th class="sortable" data-sort="number" data-col-key="spring-total">Combined</th>
+            <th class="term-divider" data-col-key="summer-paper-a">{{ paper_labels[0] }}</th><th class="sortable" data-sort="text" data-col-key="summer-paper-b">{{ paper_labels[1] }}</th><th class="sortable" data-sort="number" data-col-key="summer-total">Combined</th>
           {% else %}
-            <th class="term-divider">{{ sort_control(paper_labels[0], "autumn_a", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control(paper_labels[1], "autumn_b", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control("Autumn Total", "autumn_total", sort_key, sort_dir) }}</th>
-            <th class="term-divider">{{ sort_control(paper_labels[0], "spring_a", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control(paper_labels[1], "spring_b", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control("Spring Total", "spring_total", sort_key, sort_dir) }}</th>
-            <th class="term-divider">{{ sort_control(paper_labels[0], "summer_a", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control(paper_labels[1], "summer_b", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text">{{ sort_control("Summer Total", "summer_total", sort_key, sort_dir) }}</th>
+            <th class="term-divider" data-col-key="autumn-paper-a">{{ sort_control(paper_labels[0], "autumn_a", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text" data-col-key="autumn-paper-b">{{ sort_control(paper_labels[1], "autumn_b", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text" data-col-key="autumn-total">{{ sort_control("Autumn Total", "autumn_total", sort_key, sort_dir) }}</th>
+            <th class="term-divider" data-col-key="spring-paper-a">{{ sort_control(paper_labels[0], "spring_a", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text" data-col-key="spring-paper-b">{{ sort_control(paper_labels[1], "spring_b", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text" data-col-key="spring-total">{{ sort_control("Spring Total", "spring_total", sort_key, sort_dir) }}</th>
+            <th class="term-divider" data-col-key="summer-paper-a">{{ sort_control(paper_labels[0], "summer_a", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text" data-col-key="summer-paper-b">{{ sort_control(paper_labels[1], "summer_b", sort_key, sort_dir) }}</th><th class="sortable" data-sort="text" data-col-key="summer-total">{{ sort_control("Summer Total", "summer_total", sort_key, sort_dir) }}</th>
           {% endif %}
         </tr>
 

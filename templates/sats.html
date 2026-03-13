@@ -34,12 +34,12 @@
 
 <section>
   <div class="table-scroll">
-  <table class="sortable">
+  <table id="sats-results-table" class="table-sticky sortable" data-column-toggle="true">
     <thead>
       <tr>
-        <th class="sortable" data-sort="text">Pupil</th>
+        <th class="sortable sticky-col" data-sort="text" data-col-key="pupil" data-col-locked="true">Pupil</th>
         {% for c in columns %}
-          <th class="sortable" data-sort="text">
+          <th class="sortable" data-sort="text" data-col-key="{{ subject }}-{{ c.key }}">
             <input
               class="header-input"
               value="{{ c.header or '' }}"
@@ -56,7 +56,7 @@
     <tbody>
       {% for p in pupils %}
         <tr>
-          <td><a href="{{ url_for('pupil_page', pupil_id=p.id, year=selected_year_id, subject='maths') }}">{{ p.name }}</a></td>
+          <td class="sticky-col"><a href="{{ url_for('pupil_page', pupil_id=p.id, year=selected_year_id, subject='maths') }}">{{ p.name }}</a></td>
           {% for c in columns %}
             <td>
               <input
