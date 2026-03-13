@@ -1474,6 +1474,15 @@ def create_app():
             out["on_track"] = round(out["on_track_count"] / total * 100.0, 1)
         return out
 
+    def latest_term_with_data_for_subject(pupil_ids, year_id, subject_key):
+        if not pupil_ids or not year_id:
+            return None
+        for candidate_term in reversed(TERMS):
+            latest_rows = latest_rows_for_subject(pupil_ids, year_id, candidate_term, subject_key)
+            if latest_rows:
+                return candidate_term
+        return None
+
     def parse_id_csv(value):
         if not value:
             return []
@@ -2392,6 +2401,7 @@ def create_app():
         }
 
         overview_chart = None
+        home_subject_cards = []
         if not is_admin and mode == "home" and klass and selected_year:
             tvals = kpi.get(term, {})
             total_count = int(tvals.get("count", 0) or 0)
@@ -2413,6 +2423,26 @@ def create_app():
             }
             overview_chart["subject"] = subject
             overview_chart["term"] = term
+
+            home_pupil_ids = [p.id for p in pupils]
+            for subject_key, subject_label in (
+                ("maths", "Maths"),
+                ("reading", "Reading"),
+                ("spag", "SPaG"),
+                ("writing", "Writing"),
+            ):
+                latest_term = latest_term_with_data_for_subject(home_pupil_ids, selected_year.id, subject_key)
+                distribution = (subject_distribution_for_pupil_ids(home_pupil_ids, selected_year.id, latest_term, subject_key)
+                                if latest_term else subject_distribution_for_pupil_ids([], selected_year.id, term, subject_key))
+                has_data = bool(latest_term and distribution.get("total_count", 0) > 0)
+                home_subject_cards.append({
+                    "key": subject_key,
+                    "label": subject_label,
+                    "term": latest_term,
+                    "has_data": has_data,
+                    "chart_id": f"teacher-home-{subject_key}",
+                    **distribution,
+                })
 
         if klass is not None and klass.year_group == 6 and mode == "home":
             return redirect(url_for("y6_home", **request.args.to_dict()))
@@ -2449,6 +2479,7 @@ def create_app():
             action_needed=action_needed,
             mode=mode,
             overview_chart=overview_chart,
+            home_subject_cards=home_subject_cards,
             sort=sort,
             direction=direction,
             sort_key=sort,
