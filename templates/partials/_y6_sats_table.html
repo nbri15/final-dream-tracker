@@ -1,13 +1,13 @@
-{% macro subhead() -%}
-  <th class="th-rotate"><div><span>Raw 1</span></div></th>
-  <th class="th-rotate"><div><span>Raw 2</span></div></th>
-  <th class="th-rotate"><div><span>Raw 3</span></div></th>
-  <th class="th-rotate"><div><span>Raw 4</span></div></th>
-  <th class="th-rotate"><div><span>Scaled 1</span></div></th>
-  <th class="th-rotate"><div><span>Scaled 2</span></div></th>
-  <th class="th-rotate"><div><span>Scaled 3</span></div></th>
-  <th class="th-rotate"><div><span>Scaled 4</span></div></th>
-  <th class="th-rotate"><div><span>Latest Scaled</span></div></th>
+{% macro subhead(prefix) -%}
+  <th class="th-rotate" data-col-key="{{ prefix }}-raw1"><div><span>Raw 1</span></div></th>
+  <th class="th-rotate" data-col-key="{{ prefix }}-raw2"><div><span>Raw 2</span></div></th>
+  <th class="th-rotate" data-col-key="{{ prefix }}-raw3"><div><span>Raw 3</span></div></th>
+  <th class="th-rotate" data-col-key="{{ prefix }}-raw4"><div><span>Raw 4</span></div></th>
+  <th class="th-rotate" data-col-key="{{ prefix }}-scaled1"><div><span>Scaled 1</span></div></th>
+  <th class="th-rotate" data-col-key="{{ prefix }}-scaled2"><div><span>Scaled 2</span></div></th>
+  <th class="th-rotate" data-col-key="{{ prefix }}-scaled3"><div><span>Scaled 3</span></div></th>
+  <th class="th-rotate" data-col-key="{{ prefix }}-scaled4"><div><span>Scaled 4</span></div></th>
+  <th class="th-rotate" data-col-key="{{ prefix }}-latest"><div><span>Latest Scaled</span></div></th>
 {%- endmacro %}
 
 {% macro subject_cells(data, pupil_id, subject_key, is_editable) -%}
@@ -49,25 +49,25 @@
 {% endif %}
 
 <div class="table-scroll">
-  <table class="y6-home-table table-sticky sortable">
+  <table id="y6-sats-table" class="y6-home-table table-sticky sortable" data-column-toggle="true">
     <thead>
       <tr>
-        <th class="sortable" data-sort="text" rowspan="2">Name</th>
+        <th class="sortable sticky-col" data-sort="text" data-col-key="name" data-col-locked="true" rowspan="2">Name</th>
         {% if filters.subject in ['all', 'maths'] %}<th class="sortable" data-sort="text" colspan="9">Maths</th>{% endif %}
         {% if filters.subject in ['all', 'reading'] %}<th class="sortable" data-sort="text" colspan="9">Reading</th>{% endif %}
         {% if filters.subject in ['all', 'spag'] %}<th class="sortable" data-sort="text" colspan="9">SPaG</th>{% endif %}
       </tr>
       <tr>
-        {% if filters.subject in ['all', 'maths'] %}{{ subhead() }}{% endif %}
-        {% if filters.subject in ['all', 'reading'] %}{{ subhead() }}{% endif %}
-        {% if filters.subject in ['all', 'spag'] %}{{ subhead() }}{% endif %}
+        {% if filters.subject in ['all', 'maths'] %}{{ subhead('maths') }}{% endif %}
+        {% if filters.subject in ['all', 'reading'] %}{{ subhead('reading') }}{% endif %}
+        {% if filters.subject in ['all', 'spag'] %}{{ subhead('spag') }}{% endif %}
       </tr>
     </thead>
     <tbody>
       {% if rows %}
         {% for row in rows %}
           <tr>
-            <td>
+            <td class="sticky-col">
               <div class="y6-name">{{ row.name }}</div>
               <div class="y6-badges">
                 {% if row.badges.PP %}<span class="tiny-badge">PP</span>{% endif %}
