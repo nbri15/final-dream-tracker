@@ -119,11 +119,11 @@
 
   {% if dataset.rows %}
     <div class="table-scroll">
-      <table class="table-sticky sortable">
+      <table id="report-preview-table" class="table-sticky sortable" data-column-toggle="true">
         <thead>
           <tr>
             {% for h in dataset.headers %}
-              <th class="sortable" data-sort="text">{{ h }}</th>
+              <th class="sortable {{ 'sticky-col' if loop.first else '' }}" data-sort="text" data-col-key="{{ h|lower|replace(' ','-')|replace('%','pct')|replace('/+','-') }}" {% if loop.first %}data-col-locked="true"{% endif %}>{{ h }}</th>
             {% endfor %}
           </tr>
         </thead>
@@ -131,7 +131,7 @@
           {% for row in dataset.rows %}
             <tr>
               {% for h in dataset.headers %}
-                <td>{{ row[h] }}</td>
+                <td class="{{ 'sticky-col' if loop.first else '' }}">{{ row[h] }}</td>
               {% endfor %}
             </tr>
           {% endfor %}

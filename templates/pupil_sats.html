@@ -23,7 +23,8 @@
 {% set spag = headers_by_group.get('SPaG', []) %}
 {% set all_headers = maths + reading + spag %}
 
-<table class="sortable">
+<div class="table-scroll">
+<table id="pupil-sats-table" class="table-sticky sortable" data-column-toggle="true">
   <thead>
     <tr>
       <th class="sortable" data-sort="text" colspan="{{ maths|length }}">Maths</th>
@@ -32,7 +33,7 @@
     </tr>
     <tr>
       {% for h in all_headers %}
-        <th class="sats-col">{{ h.header if h.header else h.key }}</th>
+        <th class="sats-col" data-col-key="{{ h.key }}">{{ h.header if h.header else h.key }}</th>
       {% endfor %}
     </tr>
   </thead>
@@ -44,4 +45,5 @@
     </tr>
   </tbody>
 </table>
+</div>
 {% endblock %}
