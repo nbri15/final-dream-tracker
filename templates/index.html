@@ -135,47 +135,49 @@
 
   {% if not is_admin and mode == 'home' %}
     <section class="card">
-      <h2>Dashboard charts</h2>
-      <form class="inline" id="dashboardChartFilters">
-        <label>Subject<br>
-          <select name="subject" id="chartSubject">
-            <option value="all">All</option>
-            <option value="maths" {{ 'selected' if subject=='maths' else '' }}>Maths</option>
-            <option value="reading" {{ 'selected' if subject=='reading' else '' }}>Reading</option>
-            <option value="spag" {{ 'selected' if subject=='spag' else '' }}>SPaG</option>
-            <option value="writing" {{ 'selected' if subject=='writing' else '' }}>Writing</option>
-          </select>
-        </label>
-        <label>Group<br>
-          <select name="group" id="chartGroup">
-            <option value="all">All</option>
-            <option value="boys">Boys</option>
-            <option value="girls">Girls</option>
-            <option value="pp">PP</option>
-            <option value="non_pp">Non-PP</option>
-            <option value="laps">LAPs</option>
-            <option value="service">Service child</option>
-          </select>
-        </label>
-      </form>
-      <div class="kpis">
-        <div><canvas id="bandsChart"></canvas></div>
-        <div><canvas id="onTrackChart"></canvas></div>
-        <div><canvas id="ppCompareChart"></canvas></div>
+      <h2>Latest results by subject</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.75rem;">
+        {% for item in home_subject_cards %}
+          <article style="border:1px solid #e5e7eb;border-radius:10px;padding:0.75rem;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:0.5rem;">
+              <strong>{{ item.label }}</strong>
+              <small style="color:#6b7280;">{{ item.term if item.term else 'No data yet' }}</small>
+            </div>
+            {% if item.has_data %}
+              <canvas id="{{ item.chart_id }}" height="120" style="margin-top:0.5rem;"></canvas>
+              <ul style="margin:0.5rem 0 0 1rem;padding:0;">
+                <li>WTS: <strong>{{ item.wts_count }}</strong> ({{ item.wts }}%)</li>
+                <li>OT: <strong>{{ item.ot_count }}</strong> ({{ item.ot }}%)</li>
+                <li>GDS: <strong>{{ item.gds_count }}</strong> ({{ item.gds }}%)</li>
+              </ul>
+            {% else %}
+              <p style="margin:0.5rem 0 0;color:#6b7280;">No {{ item.label }} results available yet for this class/year.</p>
+            {% endif %}
+          </article>
+        {% endfor %}
       </div>
     </section>
-    <section class="card">
-      <h2>PP Gap (WA+)</h2>
-      <p id="ppGapHeadline">PP 0% | Non-PP 0% | Gap 0pp</p>
-    </section>
-    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
     <script>
-      window.dashboardConfig = {
-        apiUrl: "{{ url_for('api_dashboard_summary') }}",
-        year: "{{ selected_year_id }}",
-        term: "{{ filters.term }}",
-        classId: "{{ selected_class_id }}"
-      };
+      const teacherHomeCards = {{ home_subject_cards|tojson }};
+      teacherHomeCards.forEach((item) => {
+        if (!item.has_data) return;
+        const el = document.getElementById(item.chart_id);
+        if (!el) return;
+        new Chart(el, {
+          type: 'pie',
+          data: {
+            labels: ['Working towards', 'Working at', 'Working above/exceeding'],
+            datasets: [{
+              data: [item.wts_count || 0, item.ot_count || 0, item.gds_count || 0],
+              backgroundColor: ['#fee2e2', '#dcfce7', '#ffedd5']
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } }
+          }
+        });
+      });
     </script>
   {% endif %}
 
