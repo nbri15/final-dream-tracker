@@ -588,6 +588,13 @@ def create_app():
         db.session.flush()
         return cfg
 
+    def save_term_config_paper_maxima(cfg: TermConfig, maxima: dict):
+        """Persist only paper maxima fields on a TermConfig row."""
+        for field_name in ("arith_max", "reason_max", "reading_p1_max", "reading_p2_max", "spelling_max", "grammar_max"):
+            if field_name in maxima:
+                setattr(cfg, field_name, float(maxima[field_name]))
+        db.session.flush()
+
     def result_field_for_paper(subject: str, paper: str) -> str:
         subject = normalize_subject(subject)
         mapping = {
@@ -916,77 +923,18 @@ def create_app():
         return a
 
     def ensure_questions_total_marks(assessment_id: int, required_total: float):
-        """
-        Ensure sum(max_mark) equals required_total by:
-        - adding a final question (or increasing the last one) if short,
-        - removing questions from the end and trimming the new tail if too many,
-        - renumbering 1..N.
-        """
+        """Align total marks to required_total while preserving existing question structure."""
         qs = (AssessmentQuestion.query
               .filter_by(assessment_id=assessment_id)
               .order_by(AssessmentQuestion.number.asc())
               .all())
 
         if not qs:
-            whole = int(required_total)
-            for i in range(1, whole + 1):
-                db.session.add(
-                    AssessmentQuestion(assessment_id=assessment_id, number=i, max_mark=1.0)
-                )
-            remainder = round(required_total - whole, 4)
-            if remainder > 0:
-                db.session.add(
-                    AssessmentQuestion(assessment_id=assessment_id, number=whole + 1, max_mark=remainder)
-                )
-            db.session.flush()
             return
 
-        total = sum(float(q.max_mark or 0.0) for q in qs)
-
-        if total < required_total:
-            remaining = round(required_total - total, 4)
-            if remaining <= 1.0:
-                qs[-1].max_mark = round(float(qs[-1].max_mark or 0.0) + remaining, 4)
-            else:
-                last_no = qs[-1].number if qs else 0
-                while remaining > 1.0:
-                    db.session.add(
-                        AssessmentQuestion(assessment_id=assessment_id, number=last_no + 1, max_mark=1.0)
-                    )
-                    last_no += 1
-                    remaining = round(remaining - 1.0, 4)
-                if remaining > 0:
-                    db.session.add(
-                        AssessmentQuestion(assessment_id=assessment_id, number=last_no + 1, max_mark=remaining)
-                    )
-            db.session.flush()
-
-        elif total > required_total:
-            qs = (AssessmentQuestion.query
-                  .filter_by(assessment_id=assessment_id)
-                  .order_by(AssessmentQuestion.number.asc())
-                  .all())
-            idx = len(qs) - 1
-            running = total
-            while idx >= 0 and running > required_total:
-                q = qs[idx]
-                q_mark = float(q.max_mark or 0.0)
-                if running - q_mark >= required_total:
-                    running = round(running - q_mark, 4)
-                    db.session.delete(q)
-                    idx -= 1
-                else:
-                    q.max_mark = round(required_total - (running - q_mark), 4)
-                    break
-            db.session.flush()
-
-        # Renumber
-        qs2 = (AssessmentQuestion.query
-               .filter_by(assessment_id=assessment_id)
-               .order_by(AssessmentQuestion.number.asc())
-               .all())
-        for i, q in enumerate(qs2, start=1):
-            q.number = i
+        total_except_last = sum(float(q.max_mark or 0.0) for q in qs[:-1])
+        new_last_mark = round(float(required_total) - total_except_last, 4)
+        qs[-1].max_mark = max(1.0, new_last_mark)
         db.session.flush()
 
     def sync_gap_assessments_for_class_year(klass_id: int, year_id: int):
@@ -3522,21 +3470,36 @@ def create_app():
             s = get_or_make(year_id, "Spring")
             u = get_or_make(year_id, "Summer")
 
-            a.arith_max, a.reason_max = (form.autumn_arith_max.data, form.autumn_reason_max.data)
-            a.reading_p1_max, a.reading_p2_max = (form.autumn_reading_p1_max.data, form.autumn_reading_p2_max.data)
-            a.spelling_max, a.grammar_max = (form.autumn_spelling_max.data, form.autumn_grammar_max.data)
+            save_term_config_paper_maxima(a, {
+                "arith_max": form.autumn_arith_max.data,
+                "reason_max": form.autumn_reason_max.data,
+                "reading_p1_max": form.autumn_reading_p1_max.data,
+                "reading_p2_max": form.autumn_reading_p2_max.data,
+                "spelling_max": form.autumn_spelling_max.data,
+                "grammar_max": form.autumn_grammar_max.data,
+            })
             a.maths_wts_max, a.maths_ot_max = (form.autumn_maths_wts_max.data, form.autumn_maths_ot_max.data)
             a.reading_wts_max, a.reading_ot_max = (form.autumn_reading_wts_max.data, form.autumn_reading_ot_max.data)
             a.spag_wts_max, a.spag_ot_max = (form.autumn_spag_wts_max.data, form.autumn_spag_ot_max.data)
-            s.arith_max, s.reason_max = (form.spring_arith_max.data, form.spring_reason_max.data)
-            s.reading_p1_max, s.reading_p2_max = (form.spring_reading_p1_max.data, form.spring_reading_p2_max.data)
-            s.spelling_max, s.grammar_max = (form.spring_spelling_max.data, form.spring_grammar_max.data)
+            save_term_config_paper_maxima(s, {
+                "arith_max": form.spring_arith_max.data,
+                "reason_max": form.spring_reason_max.data,
+                "reading_p1_max": form.spring_reading_p1_max.data,
+                "reading_p2_max": form.spring_reading_p2_max.data,
+                "spelling_max": form.spring_spelling_max.data,
+                "grammar_max": form.spring_grammar_max.data,
+            })
             s.maths_wts_max, s.maths_ot_max = (form.spring_maths_wts_max.data, form.spring_maths_ot_max.data)
             s.reading_wts_max, s.reading_ot_max = (form.spring_reading_wts_max.data, form.spring_reading_ot_max.data)
             s.spag_wts_max, s.spag_ot_max = (form.spring_spag_wts_max.data, form.spring_spag_ot_max.data)
-            u.arith_max, u.reason_max = (form.summer_arith_max.data, form.summer_reason_max.data)
-            u.reading_p1_max, u.reading_p2_max = (form.summer_reading_p1_max.data, form.summer_reading_p2_max.data)
-            u.spelling_max, u.grammar_max = (form.summer_spelling_max.data, form.summer_grammar_max.data)
+            save_term_config_paper_maxima(u, {
+                "arith_max": form.summer_arith_max.data,
+                "reason_max": form.summer_reason_max.data,
+                "reading_p1_max": form.summer_reading_p1_max.data,
+                "reading_p2_max": form.summer_reading_p2_max.data,
+                "spelling_max": form.summer_spelling_max.data,
+                "grammar_max": form.summer_grammar_max.data,
+            })
             u.maths_wts_max, u.maths_ot_max = (form.summer_maths_wts_max.data, form.summer_maths_ot_max.data)
             u.reading_wts_max, u.reading_ot_max = (form.summer_reading_wts_max.data, form.summer_reading_ot_max.data)
             u.spag_wts_max, u.spag_ot_max = (form.summer_spag_wts_max.data, form.summer_spag_ot_max.data)
@@ -3987,6 +3950,15 @@ def create_app():
         if not apply_term_config_max(cfg, a.subject, a.paper, max_score):
             flash("Could not update this paper max score.", "error")
             return redirect(url_for("assessment_scores", assessment_id=a.id))
+
+        save_term_config_paper_maxima(cfg, {
+            "arith_max": cfg.arith_max,
+            "reason_max": cfg.reason_max,
+            "reading_p1_max": cfg.reading_p1_max,
+            "reading_p2_max": cfg.reading_p2_max,
+            "spelling_max": cfg.spelling_max,
+            "grammar_max": cfg.grammar_max,
+        })
 
         ensure_questions_total_marks(a.id, max_score)
         db.session.commit()
