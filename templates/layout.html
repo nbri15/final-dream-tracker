@@ -414,8 +414,6 @@
         <a class="sidebar-link {{ 'active' if request.endpoint == 'interventions' else '' }}" href="{{ url_for('interventions') }}">Interventions</a>
         <a class="sidebar-link {{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ reports_href }}">Reports</a>
         <a class="sidebar-link {{ 'active' if request.endpoint in ['papers','download_paper'] else '' }}" href="{{ url_for('papers') }}">Test Papers</a>
-        <a class="sidebar-link {{ 'active' if request.endpoint == 'term_settings' else '' }}" href="{{ url_for('term_settings') }}">Assessment settings</a>
-
         {% if current_user.is_admin %}
           <div class="section-title">Admin</div>
           <a class="sidebar-link {{ 'active' if request.endpoint in ['admin_home','admin_overview'] else '' }}" href="{{ url_for('admin_home') }}">Home</a>

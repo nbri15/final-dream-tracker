@@ -256,6 +256,7 @@ class TermConfig(db.Model):
     reading_p2_max = db.Column(db.Float, nullable=True)
     spelling_max = db.Column(db.Float, nullable=True)
     grammar_max = db.Column(db.Float, nullable=True)
+    pass_percentage = db.Column(db.Float, nullable=False, default=55.0)
     maths_wts_max = db.Column(db.Float, nullable=False, default=55.0)
     maths_ot_max = db.Column(db.Float, nullable=False, default=75.0)
     reading_wts_max = db.Column(db.Float, nullable=False, default=65.0)
