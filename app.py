@@ -15,7 +15,7 @@ from models import (
     PupilReportNote, PupilProfile, TestPaper
 )
 from forms import (
-    LoginForm, PupilForm, ResultForm, TermSettingsForm,
+    LoginForm, PupilForm, ResultForm, DashboardTermConfigForm,
     YearForm, SetCurrentYearForm,
     CSVUploadResultsForm, ClassSettingsForm,
     AdminUserCreateForm, AdminUserEditForm, AdminResetPasswordForm
@@ -177,6 +177,7 @@ def create_app():
             "reading_p2_max": "ALTER TABLE term_configs ADD COLUMN reading_p2_max FLOAT",
             "spelling_max": "ALTER TABLE term_configs ADD COLUMN spelling_max FLOAT",
             "grammar_max": "ALTER TABLE term_configs ADD COLUMN grammar_max FLOAT",
+            "pass_percentage": "ALTER TABLE term_configs ADD COLUMN pass_percentage FLOAT NOT NULL DEFAULT 55.0",
             "maths_wts_max": "ALTER TABLE term_configs ADD COLUMN maths_wts_max FLOAT NOT NULL DEFAULT 55.0",
             "maths_ot_max": "ALTER TABLE term_configs ADD COLUMN maths_ot_max FLOAT NOT NULL DEFAULT 75.0",
             "reading_wts_max": "ALTER TABLE term_configs ADD COLUMN reading_wts_max FLOAT NOT NULL DEFAULT 65.0",
@@ -188,6 +189,10 @@ def create_app():
             for name, sql in needed.items():
                 if name not in cols:
                     conn.execute(text(sql))
+            conn.execute(text("""
+                UPDATE term_configs
+                SET pass_percentage = COALESCE(pass_percentage, maths_wts_max, 55.0)
+            """))
 
     def ensure_audit_columns():
         try:
@@ -513,36 +518,38 @@ def create_app():
             "Note",
         ]
 
+    def default_term_config_values():
+        return {
+            "arith_max": float(app.config["ARITH_MAX"]),
+            "reason_max": float(app.config["REASON_MAX"]),
+            "reading_p1_max": float(app.config["READING_P1_MAX"]),
+            "reading_p2_max": float(app.config["READING_P2_MAX"]),
+            "spelling_max": float(app.config["SPAG_SPELLING_MAX"]),
+            "grammar_max": float(app.config["SPAG_GRAMMAR_MAX"]),
+            "pass_percentage": float(app.config["BAND_THRESHOLDS"]["maths"]["wts_max"]),
+            "maths_wts_max": float(app.config["BAND_THRESHOLDS"]["maths"]["wts_max"]),
+            "maths_ot_max": float(app.config["BAND_THRESHOLDS"]["maths"]["ot_max"]),
+            "reading_wts_max": float(app.config["BAND_THRESHOLDS"]["reading"]["wts_max"]),
+            "reading_ot_max": float(app.config["BAND_THRESHOLDS"]["reading"]["ot_max"]),
+            "spag_wts_max": float(app.config["BAND_THRESHOLDS"]["spag"]["wts_max"]),
+            "spag_ot_max": float(app.config["BAND_THRESHOLDS"]["spag"]["ot_max"]),
+        }
+
     def get_term_max_for_paper(class_id: int, academic_year_id: int, term: str, subject: str, paper: str) -> float:
         subject = normalize_subject(subject)
-        cfg = TermConfig.query.filter_by(
-            class_id=class_id,
-            academic_year_id=academic_year_id,
-            term=term,
-        ).first()
-
-        if cfg:
-            defaults = {
-                ("maths", "Arithmetic"): cfg.arith_max,
-                ("maths", "Reasoning"): cfg.reason_max,
-                ("reading", "Paper 1"): cfg.reading_p1_max,
-                ("reading", "Paper 2"): cfg.reading_p2_max,
-                ("spag", "Spelling"): cfg.spelling_max,
-                ("spag", "Grammar"): cfg.grammar_max,
-            }
-            value = defaults.get((subject, paper))
-            if value is not None:
-                return float(value)
-
-        defaults = {
-            ("maths", "Arithmetic"): app.config["ARITH_MAX"],
-            ("maths", "Reasoning"): app.config["REASON_MAX"],
-            ("reading", "Paper 1"): app.config["READING_P1_MAX"],
-            ("reading", "Paper 2"): app.config["READING_P2_MAX"],
-            ("spag", "Spelling"): app.config["SPAG_SPELLING_MAX"],
-            ("spag", "Grammar"): app.config["SPAG_GRAMMAR_MAX"],
+        cfg = get_or_create_term_config(class_id, academic_year_id, term)
+        field_map = {
+            ("maths", "Arithmetic"): "arith_max",
+            ("maths", "Reasoning"): "reason_max",
+            ("reading", "Paper 1"): "reading_p1_max",
+            ("reading", "Paper 2"): "reading_p2_max",
+            ("spag", "Spelling"): "spelling_max",
+            ("spag", "Grammar"): "grammar_max",
         }
-        return float(defaults.get((subject, paper), 0.0))
+        field_name = field_map.get((subject, paper))
+        if not field_name:
+            return 0.0
+        return float(getattr(cfg, field_name))
 
     def apply_term_config_max(cfg: TermConfig, subject: str, paper: str, value: float):
         mapping = {
@@ -560,39 +567,48 @@ def create_app():
         return True
 
     def get_or_create_term_config(class_id: int, academic_year_id: int, term: str):
+        defaults = default_term_config_values()
         cfg = TermConfig.query.filter_by(
             class_id=class_id,
             academic_year_id=academic_year_id,
             term=term,
         ).first()
         if cfg:
+            for field_name, default_value in defaults.items():
+                if getattr(cfg, field_name) is None:
+                    setattr(cfg, field_name, default_value)
+            db.session.flush()
             return cfg
         cfg = TermConfig(
             class_id=class_id,
             academic_year_id=academic_year_id,
             term=term,
-            arith_max=app.config["ARITH_MAX"],
-            reason_max=app.config["REASON_MAX"],
-            reading_p1_max=app.config["READING_P1_MAX"],
-            reading_p2_max=app.config["READING_P2_MAX"],
-            spelling_max=app.config["SPAG_SPELLING_MAX"],
-            grammar_max=app.config["SPAG_GRAMMAR_MAX"],
-            maths_wts_max=app.config["BAND_THRESHOLDS"]["maths"]["wts_max"],
-            maths_ot_max=app.config["BAND_THRESHOLDS"]["maths"]["ot_max"],
-            reading_wts_max=app.config["BAND_THRESHOLDS"]["reading"]["wts_max"],
-            reading_ot_max=app.config["BAND_THRESHOLDS"]["reading"]["ot_max"],
-            spag_wts_max=app.config["BAND_THRESHOLDS"]["spag"]["wts_max"],
-            spag_ot_max=app.config["BAND_THRESHOLDS"]["spag"]["ot_max"],
+            **defaults,
         )
         db.session.add(cfg)
         db.session.flush()
         return cfg
 
-    def save_term_config_paper_maxima(cfg: TermConfig, maxima: dict):
-        """Persist only paper maxima fields on a TermConfig row."""
-        for field_name in ("arith_max", "reason_max", "reading_p1_max", "reading_p2_max", "spelling_max", "grammar_max"):
-            if field_name in maxima:
-                setattr(cfg, field_name, float(maxima[field_name]))
+    def save_term_config(cfg: TermConfig, values: dict):
+        for field_name in (
+            "arith_max",
+            "reason_max",
+            "reading_p1_max",
+            "reading_p2_max",
+            "spelling_max",
+            "grammar_max",
+        ):
+            if field_name in values:
+                setattr(cfg, field_name, float(values[field_name]))
+        if "pass_percentage" in values:
+            pass_percentage = float(values["pass_percentage"])
+            cfg.pass_percentage = pass_percentage
+            cfg.maths_wts_max = pass_percentage
+            cfg.reading_wts_max = pass_percentage
+            cfg.spag_wts_max = pass_percentage
+        for field_name in ("maths_ot_max", "reading_ot_max", "spag_ot_max"):
+            if field_name in values:
+                setattr(cfg, field_name, float(values[field_name]))
         db.session.flush()
 
     def result_field_for_paper(subject: str, paper: str) -> str:
@@ -629,18 +645,8 @@ def create_app():
 
     def get_term_thresholds(class_id: int, academic_year_id: int, term: str, subject: str):
         subject = normalize_subject(subject)
-        cfg = TermConfig.query.filter_by(
-            class_id=class_id,
-            academic_year_id=academic_year_id,
-            term=term,
-        ).first()
-
-        default_thresholds = app.config["BAND_THRESHOLDS"].get(
-            subject,
-            app.config["BAND_THRESHOLDS"]["maths"],
-        )
-        if not cfg:
-            return default_thresholds
+        cfg = get_or_create_term_config(class_id, academic_year_id, term)
+        default_thresholds = app.config["BAND_THRESHOLDS"].get(subject, app.config["BAND_THRESHOLDS"]["maths"])
 
         field_map = {
             "maths": ("maths_wts_max", "maths_ot_max"),
@@ -648,8 +654,10 @@ def create_app():
             "spag": ("spag_wts_max", "spag_ot_max"),
         }
         wts_field, ot_field = field_map[subject]
+        wts_value = cfg.pass_percentage if cfg.pass_percentage is not None else getattr(cfg, wts_field)
         return {
-            "wts_max": float(getattr(cfg, wts_field) or default_thresholds["wts_max"]),
+            "pass_percentage": float(wts_value if wts_value is not None else default_thresholds["wts_max"]),
+            "wts_max": float(wts_value if wts_value is not None else default_thresholds["wts_max"]),
             "ot_max": float(getattr(cfg, ot_field) or default_thresholds["ot_max"]),
         }
 
@@ -679,6 +687,30 @@ def create_app():
 
         combined_pct = round(((arith + reason) / total_max) * 100.0, 1) if total_max > 0 else 0.0
         return combined_pct, compute_band_from_pct(combined_pct, subject, klass_id, term, year_id)
+
+    def recalculate_results(class_id: int, academic_year_id: int, term: str | None = None, subject: str | None = None):
+        query = (Result.query
+                 .join(Pupil, Pupil.id == Result.pupil_id)
+                 .filter(Pupil.class_id == class_id, Result.academic_year_id == academic_year_id))
+        if term:
+            query = query.filter(Result.term == term)
+        if subject:
+            query = query.filter(Result.subject == normalize_subject(subject))
+
+        for result in query.all():
+            score_a, score_b = get_result_scores(result, result.subject)
+            combined_pct, summary = compute_combined_and_band(
+                score_a,
+                score_b,
+                result.pupil.class_id if result.pupil else class_id,
+                result.term,
+                result.academic_year_id,
+                result.subject,
+            )
+            result.combined_pct = combined_pct
+            result.summary = summary
+            result.class_id_snapshot = result.pupil.class_id if result.pupil else class_id
+        db.session.flush()
 
 
     SATS_DEFAULT_COLUMNS = (("Maths", "M", 18), ("Reading", "R", 12), ("SPaG", "S", 16))
@@ -945,7 +977,7 @@ def create_app():
                     a = get_or_create_assessment_for(klass_id, year_id, term, subject, paper)
                     required_total = get_term_max_for_paper(klass_id, year_id, term, subject, paper)
                     ensure_questions_total_marks(a.id, required_total)
-        db.session.commit()
+        db.session.flush()
 
     DASHBOARD_SORT_KEYS = {
         "number", "name", "gender", "pp", "laps", "service",
@@ -2403,6 +2435,25 @@ def create_app():
                 b_max = get_term_max_for_paper(klass.id, selected_year.id, t, subject, paper_b)
                 term_maxima[t] = {"paper_a": a_max, "paper_b": b_max, "combined": a_max + b_max}
 
+        term_config_form = None
+        active_term_config = None
+        if subject != "writing" and selected_year and klass and (not is_admin or selected_class_id != "all") and (is_admin or mode == "table"):
+            active_term_config = get_or_create_term_config(klass.id, selected_year.id, term)
+            term_config_form = DashboardTermConfigForm()
+            term_config_form.academic_year.data = str(selected_year.id)
+            term_config_form.class_id.data = str(klass.id)
+            term_config_form.subject.data = subject
+            term_config_form.mode.data = mode
+            term_config_form.return_url.data = request.full_path.rstrip("?")
+            term_config_form.term.data = term
+            term_config_form.arithmetic_max.data = active_term_config.arith_max
+            term_config_form.reasoning_max.data = active_term_config.reason_max
+            term_config_form.reading_p1_max.data = active_term_config.reading_p1_max
+            term_config_form.reading_p2_max.data = active_term_config.reading_p2_max
+            term_config_form.spelling_max.data = active_term_config.spelling_max
+            term_config_form.grammar_max.data = active_term_config.grammar_max
+            term_config_form.pass_percentage.data = active_term_config.pass_percentage
+
         return render_template(
             "index.html",
             is_admin=is_admin,
@@ -2434,6 +2485,8 @@ def create_app():
             sort_dir=direction,
             table_rows=table_rows,
             term_maxima=term_maxima,
+            term_config_form=term_config_form,
+            active_term_config=active_term_config,
         )
 
 
@@ -2965,41 +3018,39 @@ def create_app():
             except ValueError:
                 return jsonify({"ok": False, "error": "Score must be a number"}), 400
 
-        existing = Result.query.filter_by(
-            pupil_id=pupil.id,
-            academic_year_id=year_id,
-            term=term,
-            subject=subject
-        ).first()
-
-        if not existing:
-            existing = Result(
+        try:
+            existing = Result.query.filter_by(
                 pupil_id=pupil.id,
                 academic_year_id=year_id,
-                class_id_snapshot=pupil.class_id,
                 term=term,
                 subject=subject
-            )
-            db.session.add(existing)
-            db.session.flush()
+            ).first()
 
-        paper = PAPERS[subject][0] if field == "arithmetic" else PAPERS[subject][1]
-        setattr(existing, result_field_for_paper(subject, paper), v)
-        existing.updated_by_teacher_id = current_user.id
+            if not existing:
+                existing = Result(
+                    pupil_id=pupil.id,
+                    academic_year_id=year_id,
+                    class_id_snapshot=pupil.class_id,
+                    term=term,
+                    subject=subject
+                )
+                db.session.add(existing)
+                db.session.flush()
 
-        try:
+            paper = PAPERS[subject][0] if field == "arithmetic" else PAPERS[subject][1]
+            setattr(existing, result_field_for_paper(subject, paper), v)
+            existing.updated_by_teacher_id = current_user.id
             combined_pct, summary = compute_combined_and_band(
                 *get_result_scores(existing, subject), pupil.class_id, term, year_id, subject
             )
+            existing.combined_pct = combined_pct
+            existing.summary = summary
+            existing.class_id_snapshot = pupil.class_id
+            db.session.commit()
+            return jsonify({"ok": True, "combined_pct": combined_pct, "summary": summary})
         except Exception:
-            combined_pct, summary = None, None
-
-        existing.combined_pct = combined_pct
-        existing.summary = summary
-        existing.class_id_snapshot = pupil.class_id
-
-        db.session.commit()
-        return jsonify({"ok": True, "combined_pct": combined_pct, "summary": summary})
+            db.session.rollback()
+            return jsonify({"ok": False, "error": "Could not save the score update."}), 500
 
     # ---- API: inline pupil updates (PP/LAPS/SVC etc)
 
@@ -3375,144 +3426,55 @@ def create_app():
             score_map=score_map,
         )
 
-    # ---- Term settings (per class & year)
-
-    @app.route("/settings/terms", methods=["GET", "POST"])
+    @app.post("/term-config/save")
     @login_required
-    def term_settings():
-        ensure_default_year()
-        form = TermSettingsForm()
-        form.academic_year.choices = academic_year_choices()
+    def term_config_save():
+        form = DashboardTermConfigForm()
+        if not form.validate_on_submit():
+            flash("Could not save settings. Check the values and try again.", "error")
+            return redirect(form.return_url.data or url_for("dashboard", subject=form.subject.data or "maths"))
 
-        classes = []
-        if is_admin_user():
-            classes = active_classes_query().order_by(SchoolClass.name.asc()).all()
-            if not classes:
-                flash("No classes available.", "error")
-                return redirect(url_for("dashboard", subject="maths"))
-            requested_class_id = request.values.get("class_id", type=int)
-            selected_class_id = requested_class_id or classes[0].id
-            klass = SchoolClass.query.get_or_404(selected_class_id)
-        else:
-            if not primary_class_id_for(current_user):
-                flash("No class assigned.", "error")
-                return redirect(url_for("dashboard", subject="maths"))
-            klass = SchoolClass.query.get_or_404(primary_class_id_for(current_user))
+        try:
+            year_id = int(form.academic_year.data)
+            class_id = int(form.class_id.data) if form.class_id.data else primary_class_id_for(current_user)
+        except (TypeError, ValueError):
+            flash("Missing class or academic year for term settings.", "error")
+            return redirect(form.return_url.data or url_for("dashboard", subject=form.subject.data or "maths"))
 
-        # Ensure cfg rows for all three terms in selected year
-        def get_or_make(year_id, term):
-            return get_or_create_term_config(klass.id, year_id, term)
+        if not class_id:
+            flash("No class assigned for saving settings.", "error")
+            return redirect(form.return_url.data or url_for("dashboard", subject=form.subject.data or "maths"))
 
-        if request.method == "GET":
-            year = parse_year_id_or_current(request.args.get("year"))
-            form.academic_year.data = year.id
-            a = get_or_make(year.id, "Autumn")
-            s = get_or_make(year.id, "Spring")
-            u = get_or_make(year.id, "Summer")
+        require_class_access(class_id)
+
+        return_target = form.return_url.data or url_for(
+            "dashboard",
+            subject=form.subject.data or "maths",
+            mode=form.mode.data or "table",
+            year=year_id,
+            **{"class": class_id, "term": form.term.data},
+        )
+
+        try:
+            cfg = get_or_create_term_config(class_id, year_id, form.term.data)
+            save_term_config(cfg, {
+                "arith_max": form.arithmetic_max.data,
+                "reason_max": form.reasoning_max.data,
+                "reading_p1_max": form.reading_p1_max.data,
+                "reading_p2_max": form.reading_p2_max.data,
+                "spelling_max": form.spelling_max.data,
+                "grammar_max": form.grammar_max.data,
+                "pass_percentage": form.pass_percentage.data,
+            })
+            recalculate_results(class_id, year_id, term=form.term.data)
+            sync_gap_assessments_for_class_year(class_id, year_id)
             db.session.commit()
+            flash("Term settings saved. Tracker, table, charts, and GAP have been refreshed.", "success")
+        except Exception:
+            db.session.rollback()
+            flash("Could not save term settings. No changes were applied.", "error")
 
-            form.autumn_arith_max.data = a.arith_max
-            form.autumn_reason_max.data = a.reason_max
-            form.autumn_reading_p1_max.data = a.reading_p1_max
-            form.autumn_reading_p2_max.data = a.reading_p2_max
-            form.autumn_spelling_max.data = a.spelling_max
-            form.autumn_grammar_max.data = a.grammar_max
-            form.autumn_maths_wts_max.data = a.maths_wts_max
-            form.autumn_maths_ot_max.data = a.maths_ot_max
-            form.autumn_reading_wts_max.data = a.reading_wts_max
-            form.autumn_reading_ot_max.data = a.reading_ot_max
-            form.autumn_spag_wts_max.data = a.spag_wts_max
-            form.autumn_spag_ot_max.data = a.spag_ot_max
-            form.spring_arith_max.data = s.arith_max
-            form.spring_reason_max.data = s.reason_max
-            form.spring_reading_p1_max.data = s.reading_p1_max
-            form.spring_reading_p2_max.data = s.reading_p2_max
-            form.spring_spelling_max.data = s.spelling_max
-            form.spring_grammar_max.data = s.grammar_max
-            form.spring_maths_wts_max.data = s.maths_wts_max
-            form.spring_maths_ot_max.data = s.maths_ot_max
-            form.spring_reading_wts_max.data = s.reading_wts_max
-            form.spring_reading_ot_max.data = s.reading_ot_max
-            form.spring_spag_wts_max.data = s.spag_wts_max
-            form.spring_spag_ot_max.data = s.spag_ot_max
-            form.summer_arith_max.data = u.arith_max
-            form.summer_reason_max.data = u.reason_max
-            form.summer_reading_p1_max.data = u.reading_p1_max
-            form.summer_reading_p2_max.data = u.reading_p2_max
-            form.summer_spelling_max.data = u.spelling_max
-            form.summer_grammar_max.data = u.grammar_max
-            form.summer_maths_wts_max.data = u.maths_wts_max
-            form.summer_maths_ot_max.data = u.maths_ot_max
-            form.summer_reading_wts_max.data = u.reading_wts_max
-            form.summer_reading_ot_max.data = u.reading_ot_max
-            form.summer_spag_wts_max.data = u.spag_wts_max
-            form.summer_spag_ot_max.data = u.spag_ot_max
-
-        if form.validate_on_submit():
-            threshold_pairs = [
-                ("Autumn Maths", form.autumn_maths_wts_max.data, form.autumn_maths_ot_max.data),
-                ("Autumn Reading", form.autumn_reading_wts_max.data, form.autumn_reading_ot_max.data),
-                ("Autumn SPaG", form.autumn_spag_wts_max.data, form.autumn_spag_ot_max.data),
-                ("Spring Maths", form.spring_maths_wts_max.data, form.spring_maths_ot_max.data),
-                ("Spring Reading", form.spring_reading_wts_max.data, form.spring_reading_ot_max.data),
-                ("Spring SPaG", form.spring_spag_wts_max.data, form.spring_spag_ot_max.data),
-                ("Summer Maths", form.summer_maths_wts_max.data, form.summer_maths_ot_max.data),
-                ("Summer Reading", form.summer_reading_wts_max.data, form.summer_reading_ot_max.data),
-                ("Summer SPaG", form.summer_spag_wts_max.data, form.summer_spag_ot_max.data),
-            ]
-            for label, wts_max, ot_max in threshold_pairs:
-                if wts_max >= ot_max:
-                    flash(f"{label}: Working towards cutoff must be lower than Working at cutoff.", "error")
-                    return redirect(url_for("term_settings", class_id=klass.id, year=form.academic_year.data))
-
-            year_id = form.academic_year.data
-            a = get_or_make(year_id, "Autumn")
-            s = get_or_make(year_id, "Spring")
-            u = get_or_make(year_id, "Summer")
-
-            save_term_config_paper_maxima(a, {
-                "arith_max": form.autumn_arith_max.data,
-                "reason_max": form.autumn_reason_max.data,
-                "reading_p1_max": form.autumn_reading_p1_max.data,
-                "reading_p2_max": form.autumn_reading_p2_max.data,
-                "spelling_max": form.autumn_spelling_max.data,
-                "grammar_max": form.autumn_grammar_max.data,
-            })
-            a.maths_wts_max, a.maths_ot_max = (form.autumn_maths_wts_max.data, form.autumn_maths_ot_max.data)
-            a.reading_wts_max, a.reading_ot_max = (form.autumn_reading_wts_max.data, form.autumn_reading_ot_max.data)
-            a.spag_wts_max, a.spag_ot_max = (form.autumn_spag_wts_max.data, form.autumn_spag_ot_max.data)
-            save_term_config_paper_maxima(s, {
-                "arith_max": form.spring_arith_max.data,
-                "reason_max": form.spring_reason_max.data,
-                "reading_p1_max": form.spring_reading_p1_max.data,
-                "reading_p2_max": form.spring_reading_p2_max.data,
-                "spelling_max": form.spring_spelling_max.data,
-                "grammar_max": form.spring_grammar_max.data,
-            })
-            s.maths_wts_max, s.maths_ot_max = (form.spring_maths_wts_max.data, form.spring_maths_ot_max.data)
-            s.reading_wts_max, s.reading_ot_max = (form.spring_reading_wts_max.data, form.spring_reading_ot_max.data)
-            s.spag_wts_max, s.spag_ot_max = (form.spring_spag_wts_max.data, form.spring_spag_ot_max.data)
-            save_term_config_paper_maxima(u, {
-                "arith_max": form.summer_arith_max.data,
-                "reason_max": form.summer_reason_max.data,
-                "reading_p1_max": form.summer_reading_p1_max.data,
-                "reading_p2_max": form.summer_reading_p2_max.data,
-                "spelling_max": form.summer_spelling_max.data,
-                "grammar_max": form.summer_grammar_max.data,
-            })
-            u.maths_wts_max, u.maths_ot_max = (form.summer_maths_wts_max.data, form.summer_maths_ot_max.data)
-            u.reading_wts_max, u.reading_ot_max = (form.summer_reading_wts_max.data, form.summer_reading_ot_max.data)
-            u.spag_wts_max, u.spag_ot_max = (form.summer_spag_wts_max.data, form.summer_spag_ot_max.data)
-            db.session.commit()
-
-            sync_gap_assessments_for_class_year(klass.id, year_id)
-
-            flash("Term settings saved and GAP analyses synced.", "success")
-            if is_admin_user():
-                return redirect(url_for("term_settings", class_id=klass.id, year=year_id))
-            return redirect(url_for("dashboard", subject="maths"))
-
-        return render_template("settings_terms.html", form=form, klass=klass, classes=classes)
+        return redirect(return_target)
 
     # ---- Class settings (year group)
 
@@ -3946,24 +3908,28 @@ def create_app():
             flash("Paper max score must be greater than zero.", "error")
             return redirect(url_for("assessment_scores", assessment_id=a.id))
 
-        cfg = get_or_create_term_config(a.class_id, a.academic_year_id, a.term)
-        if not apply_term_config_max(cfg, a.subject, a.paper, max_score):
-            flash("Could not update this paper max score.", "error")
-            return redirect(url_for("assessment_scores", assessment_id=a.id))
+        try:
+            cfg = get_or_create_term_config(a.class_id, a.academic_year_id, a.term)
+            if not apply_term_config_max(cfg, a.subject, a.paper, max_score):
+                flash("Could not update this paper max score.", "error")
+                return redirect(url_for("assessment_scores", assessment_id=a.id))
 
-        save_term_config_paper_maxima(cfg, {
-            "arith_max": cfg.arith_max,
-            "reason_max": cfg.reason_max,
-            "reading_p1_max": cfg.reading_p1_max,
-            "reading_p2_max": cfg.reading_p2_max,
-            "spelling_max": cfg.spelling_max,
-            "grammar_max": cfg.grammar_max,
-        })
-
-        ensure_questions_total_marks(a.id, max_score)
-        db.session.commit()
-
-        flash(f"Paper max score set to {max_score:g} and GAP questions synced.", "success")
+            save_term_config(cfg, {
+                "arith_max": cfg.arith_max,
+                "reason_max": cfg.reason_max,
+                "reading_p1_max": cfg.reading_p1_max,
+                "reading_p2_max": cfg.reading_p2_max,
+                "spelling_max": cfg.spelling_max,
+                "grammar_max": cfg.grammar_max,
+                "pass_percentage": cfg.pass_percentage,
+            })
+            ensure_questions_total_marks(a.id, max_score)
+            recalculate_results(a.class_id, a.academic_year_id, term=a.term, subject=a.subject)
+            db.session.commit()
+            flash(f"Paper max score set to {max_score:g} and GAP questions synced.", "success")
+        except Exception:
+            db.session.rollback()
+            flash("Could not update the paper max score. Your previous values were kept.", "error")
         return redirect(url_for("assessment_scores", assessment_id=a.id))
 
     @app.route("/assessments/<int:assessment_id>/scores", methods=["GET", "POST"])
@@ -3980,33 +3946,35 @@ def create_app():
         ).all()
 
         if request.method == "POST":
-            for p in pupils:
-                for q in questions:
-                    field_name = f"score_{p.id}_{q.id}"
-                    val = request.form.get(field_name, "")
-                    try:
-                        mark = float(val) if val != "" else 0.0
-                    except ValueError:
-                        mark = 0.0
-                    s = PupilQuestionScore.query.filter_by(
-                        assessment_id=a.id, pupil_id=p.id, question_id=q.id
-                    ).first()
-                    if s:
-                        s.mark = mark
-                        s.updated_by_teacher_id = current_user.id
-                    else:
-                        db.session.add(PupilQuestionScore(
-                            assessment_id=a.id, pupil_id=p.id, question_id=q.id, mark=mark,
-                            updated_by_teacher_id=current_user.id
-                        ))
-            # Save question-level marks
-            db.session.commit()
-
-            # Push totals into Results so dashboard + pupil report update
-            sync_assessment_totals_to_results(a.id)
-
-            flash("Scores saved.", "success")
-            return redirect(url_for("assessment_analysis", assessment_id=a.id))
+            try:
+                for p in pupils:
+                    for q in questions:
+                        field_name = f"score_{p.id}_{q.id}"
+                        val = request.form.get(field_name, "")
+                        try:
+                            mark = float(val) if val != "" else 0.0
+                        except ValueError:
+                            mark = 0.0
+                        s = PupilQuestionScore.query.filter_by(
+                            assessment_id=a.id, pupil_id=p.id, question_id=q.id
+                        ).first()
+                        if s:
+                            s.mark = mark
+                            s.updated_by_teacher_id = current_user.id
+                        else:
+                            db.session.add(PupilQuestionScore(
+                                assessment_id=a.id, pupil_id=p.id, question_id=q.id, mark=mark,
+                                updated_by_teacher_id=current_user.id
+                            ))
+                db.session.flush()
+                sync_assessment_totals_to_results(a.id)
+                db.session.commit()
+                flash("Scores saved.", "success")
+                return redirect(url_for("assessment_analysis", assessment_id=a.id))
+            except Exception:
+                db.session.rollback()
+                flash("Could not save scores. All score changes were rolled back.", "error")
+                return redirect(url_for("assessment_scores", assessment_id=a.id))
 
         scores = {(s.pupil_id, s.question_id): s.mark for s in PupilQuestionScore.query.filter_by(assessment_id=a.id).all()}
         current_max_score = get_term_max_for_paper(a.class_id, a.academic_year_id, a.term, a.subject, a.paper)
