@@ -6,10 +6,12 @@ import pytest
 from app import create_app
 from config import Config
 from models import (
+    Result,
     db,
     AcademicYear,
     Assessment,
     AssessmentQuestion,
+    Pupil,
     SchoolClass,
     Teacher,
     TeacherClass,
@@ -56,45 +58,21 @@ def _login(client, username: str):
     assert resp.status_code in (302, 303)
 
 
-def _term_settings_payload(year_id: int, overrides: dict | None = None):
+def _term_config_payload(year_id: int, class_id: int, overrides: dict | None = None):
     data = {
         "academic_year": str(year_id),
-        "autumn_arith_max": "41",
-        "autumn_reason_max": "39",
-        "autumn_reading_p1_max": "44",
-        "autumn_reading_p2_max": "43",
-        "autumn_spelling_max": "28",
-        "autumn_grammar_max": "32",
-        "spring_arith_max": "38",
-        "spring_reason_max": "35",
-        "spring_reading_p1_max": "40",
-        "spring_reading_p2_max": "40",
-        "spring_spelling_max": "40",
-        "spring_grammar_max": "40",
-        "summer_arith_max": "38",
-        "summer_reason_max": "35",
-        "summer_reading_p1_max": "40",
-        "summer_reading_p2_max": "40",
-        "summer_spelling_max": "40",
-        "summer_grammar_max": "40",
-        "autumn_maths_wts_max": "55",
-        "autumn_maths_ot_max": "75",
-        "autumn_reading_wts_max": "65",
-        "autumn_reading_ot_max": "85",
-        "autumn_spag_wts_max": "65",
-        "autumn_spag_ot_max": "85",
-        "spring_maths_wts_max": "55",
-        "spring_maths_ot_max": "75",
-        "spring_reading_wts_max": "65",
-        "spring_reading_ot_max": "85",
-        "spring_spag_wts_max": "65",
-        "spring_spag_ot_max": "85",
-        "summer_maths_wts_max": "55",
-        "summer_maths_ot_max": "75",
-        "summer_reading_wts_max": "65",
-        "summer_reading_ot_max": "85",
-        "summer_spag_wts_max": "65",
-        "summer_spag_ot_max": "85",
+        "class_id": str(class_id),
+        "subject": "maths",
+        "mode": "table",
+        "return_url": f"/dashboard/maths?mode=table&class={class_id}&year={year_id}&term=Autumn",
+        "term": "Autumn",
+        "arithmetic_max": "41",
+        "reasoning_max": "39",
+        "reading_p1_max": "44",
+        "reading_p2_max": "43",
+        "spelling_max": "28",
+        "grammar_max": "32",
+        "pass_percentage": "55",
         "submit": "Save settings",
     }
     if overrides:
@@ -102,7 +80,7 @@ def _term_settings_payload(year_id: int, overrides: dict | None = None):
     return data
 
 
-def test_admin_term_settings_persists_paper_maxima(client, test_app):
+def test_admin_inline_term_settings_persist_termconfig(client, test_app):
     with test_app.app_context():
         year = AcademicYear.query.filter_by(is_current=True).first()
         klass = SchoolClass(name=f"Class-{uuid.uuid4().hex[:6]}", year_group=6)
@@ -115,8 +93,8 @@ def test_admin_term_settings_persists_paper_maxima(client, test_app):
 
     _login(client, admin_username)
 
-    payload = _term_settings_payload(year_id, {"class_id": str(klass_id), "autumn_arith_max": "52.5"})
-    resp = client.post("/settings/terms", data=payload, follow_redirects=False)
+    payload = _term_config_payload(year_id, klass_id, {"arithmetic_max": "52.5"})
+    resp = client.post("/term-config/save", data=payload, follow_redirects=False)
     assert resp.status_code in (302, 303)
 
     with test_app.app_context():
@@ -124,13 +102,14 @@ def test_admin_term_settings_persists_paper_maxima(client, test_app):
         assert cfg is not None
         assert cfg.arith_max == pytest.approx(52.5)
         assert cfg.reason_max == pytest.approx(39.0)
+        assert cfg.pass_percentage == pytest.approx(55.0)
 
-    page = client.get(f"/settings/terms?class_id={klass_id}&year={year_id}")
+    page = client.get(f"/dashboard/maths?mode=table&class={klass_id}&year={year_id}&term=Autumn")
     assert page.status_code == 200
     assert b'value="52.5"' in page.data
 
 
-def test_teacher_term_settings_persists_for_own_class(client, test_app):
+def test_teacher_inline_term_settings_persist_for_own_class(client, test_app):
     with test_app.app_context():
         year = AcademicYear.query.filter_by(is_current=True).first()
         klass = SchoolClass(name=f"TeacherClass-{uuid.uuid4().hex[:6]}", year_group=5)
@@ -143,16 +122,19 @@ def test_teacher_term_settings_persists_for_own_class(client, test_app):
 
     _login(client, teacher_username)
 
-    payload = _term_settings_payload(year_id, {"autumn_reason_max": "47.5"})
-    resp = client.post("/settings/terms", data=payload, follow_redirects=False)
+    payload = _term_config_payload(year_id, klass_id, {"reasoning_max": "47.5", "pass_percentage": "62"})
+    resp = client.post("/term-config/save", data=payload, follow_redirects=False)
     assert resp.status_code in (302, 303)
 
     with test_app.app_context():
         cfg = TermConfig.query.filter_by(class_id=klass_id, academic_year_id=year_id, term="Autumn").first()
         assert cfg is not None
         assert cfg.reason_max == pytest.approx(47.5)
+        assert cfg.pass_percentage == pytest.approx(62.0)
+        assert cfg.maths_wts_max == pytest.approx(62.0)
+        assert cfg.reading_wts_max == pytest.approx(62.0)
 
-    page = client.get(f"/settings/terms?year={year_id}")
+    page = client.get(f"/dashboard/maths?mode=table&class={klass_id}&year={year_id}&term=Autumn")
     assert page.status_code == 200
     assert b'value="47.5"' in page.data
 
@@ -201,3 +183,42 @@ def test_gap_sync_keeps_question_structure_and_adjusts_last_only(client, test_ap
         cfg = TermConfig.query.filter_by(class_id=klass_id, academic_year_id=year_id, term="Autumn").first()
         assert cfg is not None
         assert cfg.arith_max == pytest.approx(12.0)
+
+
+def test_inline_term_settings_recalculate_existing_results(client, test_app):
+    with test_app.app_context():
+        year = AcademicYear.query.filter_by(is_current=True).first()
+        klass = SchoolClass(name=f"RecalcClass-{uuid.uuid4().hex[:6]}", year_group=6)
+        db.session.add(klass)
+        db.session.commit()
+        teacher = _make_user(f"recalc-{uuid.uuid4().hex[:6]}", klass.id, is_admin=False)
+        pupil = Pupil(class_id=klass.id, name="Pupil A")
+        db.session.add(pupil)
+        db.session.flush()
+        db.session.add(Result(
+            pupil_id=pupil.id,
+            academic_year_id=year.id,
+            class_id_snapshot=klass.id,
+            term="Autumn",
+            subject="maths",
+            arithmetic=20.0,
+            reasoning=20.0,
+        ))
+        db.session.commit()
+        teacher_username = teacher.username
+        klass_id = klass.id
+        year_id = year.id
+
+    _login(client, teacher_username)
+    resp = client.post(
+        "/term-config/save",
+        data=_term_config_payload(year_id, klass_id, {"arithmetic_max": "20", "reasoning_max": "20", "pass_percentage": "60"}),
+        follow_redirects=False,
+    )
+    assert resp.status_code in (302, 303)
+
+    with test_app.app_context():
+        result = Result.query.filter_by(class_id_snapshot=klass_id, academic_year_id=year_id, term="Autumn", subject="maths").first()
+        assert result is not None
+        assert result.combined_pct == pytest.approx(100.0)
+        assert result.summary == "Exceeding ARE"
