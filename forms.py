@@ -74,15 +74,6 @@ class SetCurrentYearForm(FlaskForm):
 
 # --- CSV imports ---
 
-class CSVUploadPupilsForm(FlaskForm):
-    csv_file = FileField("Pupils CSV (.csv)", validators=[DataRequired()])
-    # Teachers are constrained to their class in the view; admins can choose:
-    class_id = SelectField("Class (admins)", coerce=int, validators=[Optional()])
-    submit_preview = SubmitField("Upload & Preview")
-    submit_confirm = SubmitField("Confirm Import")
-    token = HiddenField()  # simple reconciliation token for preview/confirm
-
-
 class CSVUploadResultsForm(FlaskForm):
     csv_file = FileField("Class CSV (.csv)", validators=[DataRequired()])
     academic_year = SelectField("Academic year", coerce=int, validators=[DataRequired()])
