@@ -58,7 +58,7 @@ def create_app():
 
     # ---- Helpers
     TERMS = ["Autumn", "Spring", "Summer"]
-    SUBJECTS = SUBJECTS = ("maths", "reading", "spag", "writing")
+    SUBJECTS = ("maths", "reading", "spag", "writing")
     PAPERS = {
         "maths": ["Arithmetic", "Reasoning"],
         "reading": ["Paper 1", "Paper 2"],
@@ -231,10 +231,7 @@ def create_app():
                     conn.execute(text(sql))
 
     def ensure_teacher_admin_columns_and_links():
-        """
-        Transitional schema helper until proper Alembic migrations are added.
-        TODO: replace with migrations in /migrations for production rollouts.
-        """
+        """Ensure teacher admin/link fields exist for older local databases."""
         insp = inspect(db.engine)
         with db.engine.begin() as conn:
             teacher_cols = {c["name"] for c in insp.get_columns("teachers")}
@@ -2491,18 +2488,6 @@ def create_app():
 
 
 
-    @app.route("/writing")
-    @login_required
-    def writing_dashboard():
-        class_sel = request.args.get("class")
-        year_sel = request.args.get("year")
-        params = {"subject": "writing"}
-        if class_sel not in (None, ""):
-            params["class"] = class_sel
-        if year_sel not in (None, ""):
-            params["year"] = year_sel
-        return redirect(url_for("dashboard", **params))
-
     @app.route("/api/dashboard/summary")
     @login_required
     def api_dashboard_summary():
@@ -2734,50 +2719,6 @@ def create_app():
         if year_sel not in (None, ""):
             params["year"] = year_sel
         return redirect(url_for("sats_page", **params))
-
-    @app.route("/year6/writing")
-    @login_required
-    def y6_writing():
-        params = {"subject": "writing", "mode": "table"}
-        class_sel = request.args.get("class")
-        year_sel = request.args.get("year")
-        klass = None
-        if class_sel not in (None, "", "all"):
-            try:
-                klass = SchoolClass.query.get(int(class_sel))
-            except (TypeError, ValueError):
-                klass = None
-
-        if klass is None:
-            if getattr(current_user, "is_admin", False):
-                klass = (active_classes_query()
-                         .filter(SchoolClass.year_group == 6)
-                         .order_by(SchoolClass.name.asc())
-                         .first())
-            else:
-                class_id = primary_class_id_for(current_user)
-                klass = SchoolClass.query.get(class_id) if class_id else None
-
-        if not klass or klass.year_group != 6 or klass.is_archived or klass.is_archive:
-            flash("Year 6 Writing is only available for active Year 6 classes.", "error")
-            return redirect(url_for("dashboard", subject="writing", mode="table"))
-
-        params["class"] = klass.id
-        if year_sel not in (None, ""):
-            params["year"] = year_sel
-        return redirect(url_for("dashboard", **params))
-
-    @app.route("/year6/reports")
-    @login_required
-    def y6_reports():
-        params = {}
-        class_sel = request.args.get("class")
-        year_sel = request.args.get("year")
-        if class_sel not in (None, ""):
-            params["class"] = class_sel
-        if year_sel not in (None, ""):
-            params["year"] = year_sel
-        return redirect(url_for("reports", **params))
 
     @app.route("/api/writing/quick_save", methods=["POST"])
 
@@ -3840,12 +3781,6 @@ def create_app():
             subjects=SUBJECTS,
             assessment_maxima=assessment_maxima,
         )
-
-    @app.route("/assessments/new", methods=["GET", "POST"])
-    @login_required
-    def assessment_new():
-        flash("Manual assessment creation disabled", "error")
-        return redirect(url_for("assessments"))
 
     @app.route("/assessments/<int:assessment_id>/questions", methods=["GET", "POST"])
     @login_required
